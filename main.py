@@ -1,16 +1,12 @@
 from fastapi import FastAPI, status, Depends, HTTPException
 from typing import Annotated
 from sqlalchemy.orm import Session
-from accounts_related.database_models import SessionLocal, engine
-from accounts_related.account import sign_up, try_sign_up,login_for_session_key, logout, verify_login
-import accounts_related.database_models
 
-# FastAPI app setup
-app = FastAPI()
-app.include_router(accounts_related.account.router)
-
-# Create all tables
-accounts_related.database_models.Base.metadata.create_all(bind=engine)
+from root.account.database_models import SessionLocal, engine
+from root.account.account import sign_up, try_sign_up,login_for_session_key, logout, verify_login
+from root import database_models
+from root import account
+from root.account.api import app
 
 # Dependency to provide database session
 def get_db():
@@ -19,13 +15,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-db_dependency = Annotated[Session, Depends(get_db)]
-
-# Sample route to check user authentication
-@app.get("/", status_code=status.HTTP_200_OK)
-async def get_user(user: str = None, db: db_dependency = Depends()):
-    if user is None:
-        raise HTTPException(status_code=401, detail='Authentication Failed')
-    return {"User": user}
-
