@@ -1,7 +1,7 @@
 import re
 from sqlalchemy.orm.exc import NoResultFound
 from root.account.get_user_data_from_db import get_user_data_by_UID
-from root.account.database_models import session, Credentials
+from root.database.database_models import session, Credentials
 from passlib.context import CryptContext
 
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
@@ -11,7 +11,7 @@ bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 def ValidUsername(Username: str):
     """Username must be 3-50 characters long and only include A-Z, a-z & 0-9"""
     if re.fullmatch(r'[A-Za-z0-9]{3,50}', Username):
-        return True
+        return Username
     else:
         raise ValueError("Username must be 3-50 characters long and only include A-Z, a-z & 0-9")
 
@@ -20,7 +20,7 @@ def ValidUsername(Username: str):
 def ValidEmail(Email: str):
     """Email must be in a valid format (e.g., user@example.com)"""
     if re.fullmatch(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', Email):
-        return True
+        return Email
     else:
         raise ValueError("Email must be in a valid format (e.g., user@example.com)")
 
@@ -29,7 +29,7 @@ def ValidEmail(Email: str):
 def ValidPassword(Password: str):
     """Password must be 6-50 characters long and contain at least one A-Z, a-z, 0-9, and special character"""
     if re.fullmatch(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&]).{6,50}$', Password):
-        return True
+        return Password
     else:
         raise ValueError("Password must be 6-50 characters long and contain at least one A-Z, a-z, 0-9, and special character")
 

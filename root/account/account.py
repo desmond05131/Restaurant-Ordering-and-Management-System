@@ -1,4 +1,4 @@
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime,timezone
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from typing import Annotated, Optional
@@ -8,14 +8,14 @@ from sqlalchemy.orm.exc import NoResultFound
 from jwt import encode, decode, ExpiredSignatureError
 from passlib.context import CryptContext
 
-from .database_models import session, Role, User, Credentials, SessionKey
+from ..database.database_models import session, Role, User, Credentials, SessionKey
 from .verify_credentials import get_UID_by_email, set_credentials, verify_login, ValidEmail, ValidPassword, ValidUserData, ValidUsername
 from .get_user_data_from_db import get_user_data_by_UID, get_role, get_user, UserData, Users
-from .api import app
+from api import app
 
 SECRET_KEY = "512d12erd518952976c0db0m7trw95unf785mr9642hx57yb215"
 ALGORITHM = "HS256"
-bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+bcrypt_context = CryptContext(schemes=['bcrypt'])
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/account/key")
 
 class SignUpRequest(BaseModel):
@@ -32,17 +32,17 @@ class Key(BaseModel):
     access_key: str
     key_type: str
 
-# Dependency to get the database session
+# dependency to get the database session
 def get_db():
-    db = session
+    session = session
     try:
-        yield db
+        yield session
     finally:
-        db.close()
+        session.close()
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
-# apa lanjau ni
+# apa ni
 # Sample route to check user authentication
 # @app.get("/", status_code=status.HTTP_200_OK)
 # async def get_user(user: str, db: db_dependency):
@@ -50,28 +50,29 @@ db_dependency = Annotated[Session, Depends(get_db)]
 #         raise HTTPException(status_code=401, detail='Authentication Failed')
 #     return {"User": user}
 
-def sign_up(sign_up_request: SignUpRequest, db: Session):
+def sign_up(sign_up_request: SignUpRequest):
     user = User(Username=sign_up_request.Username, Email=sign_up_request.Email, Role_id=1)
-    db.add(user)
-    db.flush()  # To generate user.UID before it's used in Credentials
+    session.add(user)
+    session.flush()  # To generate user.UID before it's used in Credentials
+    print(sign_up_request.Password)
     credential = Credentials(UID=user.UID, Password_hash=bcrypt_context.hash(sign_up_request.Password))
-    db.add(credential)
-    db.commit()
+    session.add(credential)
+    session.commit()
     print(f"User {user.Username} created successfully.")
 
 @app.post("/account/signup", status_code=status.HTTP_201_CREATED, tags=['account'])
-async def try_sign_up(db: db_dependency, sign_up_request: SignUpRequest):
+async def try_sign_up(sign_up_request: SignUpRequest):
     try:
         ValidUserData(sign_up_request)
         ValidUsername(sign_up_request.Username)
         ValidEmail(sign_up_request.Email)
         ValidPassword(sign_up_request.Password)
 
-        existing_user = db.query(UserData).filter_by(Email=sign_up_request.Email).one_or_none()
+        existing_user = session.query(UserData).filter_by(Email=sign_up_request.Email).one_or_none()
         if existing_user:
             raise LookupError("Email already registered")
         
-        sign_up(sign_up_request, db)
+        sign_up(sign_up_request, session)
     except LookupError as err:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -83,29 +84,29 @@ async def try_sign_up(db: db_dependency, sign_up_request: SignUpRequest):
             detail=str(err)
         )
 
-def create_session_key(Username: str, UID: int, expires_delta: timedelta, db: Session):
+def create_session_key(Username: str, UID: int, expires_delta: timedelta):
     encode = {'sub': Username, 'id': UID}
-    expires = datetime.utcnow() + expires_delta
+    expires = datetime.now(timezone.utc) + expires_delta
     encode.update({'exp': expires})
     key = encode(encode, SECRET_KEY, algorithm=ALGORITHM)
     
     session_key = SessionKey(UID=UID, SessionKey=key)
-    db.add(session_key)
-    db.commit()
+    session.add(session_key)
+    session.commit()
     
     return key
 
 @app.post("/key", response_model=Key, tags = ['account'])
-async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: db_dependency):
-    user = verify_login(form_data.username, form_data.password, db)
+async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    user = verify_login(form_data.username, form_data.password, session)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
     
-    created_key = create_session_key(user.Username, user.UID, timedelta(minutes=120), db)
+    created_key = create_session_key(user.Username, user.UID, timedelta(minutes=120), session)
     
     for key in user.session_keys:
         try:
-            validate_session_key(key, db)
+            validate_session_key(key, session)
         except:
             pass
     
@@ -114,7 +115,7 @@ async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, 
 
     return {'access_key': created_key, 'key_type': 'bearer'}
 
-async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)], db: db_dependency):
+async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]):
     try:
         payload = decode(key, SECRET_KEY, algorithms=[ALGORITHM])
         Username: str = payload.get('sub')
@@ -122,7 +123,7 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)], db: 
         if Username is None or UID is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
         
-        user = get_user(UID, db)
+        user = get_user(UID,session)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
         
@@ -133,18 +134,18 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)], db: 
     except ExpiredSignatureError:
         if key in user.session_keys:
             user.session_keys.remove(key)
-            db.commit()
+            session.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Session key expired')
 
 @app.delete(path='/account/expire_session_key', tags=['account'])
-async def logout(user: Annotated[User, Depends(validate_session_key)], key: str, db: db_dependency):
+async def logout(user: Annotated[User, Depends(validate_session_key)], key: str):
     try:
-        user = get_user(user.id, db)
+        user = get_user(user.id, session)
         if key not in [s.SessionKey for s in user.session_keys]:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
 
         user.session_keys = [s for s in user.session_keys if s.SessionKey != key]
-        db.commit()
+        session.commit()
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
 
@@ -176,60 +177,93 @@ class create_account_details(BaseModel):
     Username: Annotated[str, AfterValidator(ValidUsername)]
     Email: Annotated[str, AfterValidator(ValidEmail)]
     Password: Annotated[str, AfterValidator(ValidPassword)]
+    Role_id: int
 
-def create_account(db : db_dependency, account_details : create_account_details):
+def create_account(account_details: create_account_details):
+    user = User(Username=account_details.Username, Email=account_details.Email, Role_id=account_details.Role_id)
+    session.add(user)
+    session.flush()  # To generate user.UID before it's used in Credentials
+    print(account_details.Password)
+    credential = Credentials(UID=user.UID, Password_hash=bcrypt_context.hash(account_details.Password))
+    session.add(credential)
+    session.commit()
+    print(f"User {user.Username} created successfully.")
+
+def create_account_if_not_exist(account_details : create_account_details):
     
-    existing_user = db.query(UserData).filter_by(Email=create_account_details.Email).one_or_none()
+    existing_user = session.query(UserData).filter_by(Email=create_account_details.Email).one_or_none()
     if existing_user:
         raise LookupError("Email already registered")
-    sign_up(account_details)
+    create_account(account_details)
 
 @app.post('/account/create/',tags = ['account'])
 async def manager_create_account(user : Annotated[User, Depends(validate_role(roles=['Manager']))], account_details : create_account_details):
-    create_account(create_account_details)
+    create_account_if_not_exist(create_account_details)
 
 ##edit credentials
 @app.patch('/account/edit/credentials', tags = ['account'])
-def edit_credentials(db : db_dependency, user: Annotated[User, Depends(validate_role(roles=['Manager']))], Email : str, new_password : str):
+def edit_credentials(user: Annotated[User, Depends(validate_role(roles=['Manager']))], Email : str, new_password : str):
     user_id = get_UID_by_email(Email)
     if user_id is None:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail='user not found')
     try:
         new_password_hash= bcrypt_context.hash(new_password)
-        credentials = db.query(Credentials).filter_by(UID = user_id).one()
+        credentials = session.query(Credentials).filter_by(UID = user_id).one()
         credentials.Password_hash = new_password_hash
-        db.commit()
+        session.commit()
 
         return {"message": f"Password updated seccefully for {Email}"}
     
     except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Credentials not found for the user')
     except Exception as e:
-        db.rollback()
+        session.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+    
+##edit user acccount detials
+@app.patch('/account/edit/user_data', tags = ['account'])
+def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['Manager']))], Email : str, new_username : str, new_role_id ):
+    user_id = get_UID_by_email(Email)
+    if user_id is None:
+        raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail='user not found')
+    try:
+        new_Username= new_username
+        new_Role_id= new_role_id 
+        user_data = session.query(UserData).filter_by(UID = user_id).one()
+        user_data.Username = new_Username
+        user_data.Role_id = new_Role_id
+
+        session.commit()
+
+        return {"message": f"User_data updated seccefully for {Email}"}
+    
+    except NoResultFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User data not found for the user')
+    except Exception as e:
+        session.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-
 @app.patch('/account/edit/delete_user', tags = ['account'])
-def delete_account(db : db_dependency, user: Annotated[User, Depends(validate_role(roles=['Manager']))], Email : str):
+def delete_account(user: Annotated[User, Depends(validate_role(roles=['Manager']))], Email : str):
     try:
-        user_to_delete = db.query(UserData).filter_by(Email=Email).one_or_none()
+        user_to_delete = session.query(UserData).filter_by(Email=Email).one_or_none()
         if user_to_delete is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        credentials_to_delete = db.query(Credentials).filter_by(UID=user_to_delete.UID).one_or_none()
+        credentials_to_delete = session.query(Credentials).filter_by(UID=user_to_delete.UID).one_or_none()
 
         if credentials_to_delete is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Credentials not found for the given user")
 
-        db.delete(credentials_to_delete)
-        db.delete(user_to_delete)
-        db.commit()
+        session.delete(credentials_to_delete)
+        session.delete(user_to_delete)
+        session.commit()
 
         return {"message": f"User with email {Email} has been successfully deleted"}
 
     except HTTPException as err:
         raise err
     except Exception as err:
-        db.rollback()
+        session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(err)
