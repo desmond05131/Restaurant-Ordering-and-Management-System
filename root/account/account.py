@@ -16,7 +16,7 @@ from api import app
 SECRET_KEY = "512d12erd518952976c0db0m7trw95unf785mr9642hx57yb215"
 ALGORITHM = "HS256"
 bcrypt_context = CryptContext(schemes=['bcrypt'])
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/account/key")
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/key")
 
 class SignUpRequest(BaseModel):
     Username: str
@@ -96,8 +96,10 @@ def create_session_key(Username: str, UID: int, expires_delta: timedelta):
     
     return key
 
-@app.post("/key", response_model=Key, tags = ['account'])
-async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+
+
+@app.post("/account/key", response_model=Key, tags = ['account'])
+async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Key:
     user = verify_login(form_data.username, form_data.password, session)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
@@ -113,7 +115,7 @@ async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, 
     if created_key is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to create session key')
 
-    return {'access_key': created_key, 'key_type': 'bearer'}
+    return Key(access_key= created_key, key_type= 'bearer')
 
 async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]):
     try:
@@ -131,6 +133,8 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
         
         return {'username': Username, 'id': UID}
+        print(f"User {user.Username} login successfully.")
+    
     except ExpiredSignatureError:
         if key in user.session_keys:
             user.session_keys.remove(key)

@@ -1,7 +1,7 @@
 import re
 from sqlalchemy.orm.exc import NoResultFound
 from root.account.get_user_data_from_db import get_user_data_by_UID
-from root.database.database_models import session, Credentials
+from root.database.database_models import session, Credentials,User
 from passlib.context import CryptContext
 
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
@@ -47,7 +47,7 @@ def ValidUserData(data: dict):
 # Get UID from Email
 def get_UID_by_email(Email: str) -> int:
     try:
-        user = session.query(get_user_data_by_UID).filter_by(Email=Email).one()
+        user = session.query(User).filter_by(Email=Email).one()
         return user.UID
     except NoResultFound:
         raise ValueError("User with this email doesn't exist.")
