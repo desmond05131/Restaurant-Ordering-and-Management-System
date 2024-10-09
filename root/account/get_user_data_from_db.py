@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import Session
 from root.database.database_models import User, SessionKey, Credentials, Role, SessionLocal,session
@@ -14,14 +15,14 @@ def get_db():
 
 
 class UserData(BaseModel):
-    Role_ID: int 
+    Role_ID: int
     Role_Name: str
-    UID: int 
+    UID: int
     Username: str
     Email: str
     Role_id: int
-    Password_hash: str  
-    Key: List[str] = Field(default_factory=list)  
+    Password_hash: str
+    Key: List[str] = Field(default_factory=list)
 
     def commit(self):
         db_session_keys = [sk.Session_Key for sk in session.query(SessionKey).filter_by(UID=self.UID).all()]
@@ -45,9 +46,11 @@ class UserData(BaseModel):
 # get user data by UID
 def get_user_data_by_UID(UID: int) -> dict:
     try:
-        user = session.query(User).filter_by(UID=UID).one()
-        credentials = session.query(Credentials).filter_by(UID=UID).one()
-        session_keys = session.query(SessionKey).filter_by(UID=UID).all()
+        user = session.query(User).filter_by(UID=UID).one()#session.execute(select(User.UID).where(User.UID==UID)).one()
+        credentials = session.query(Credentials).filter_by(UID=UID).one() #session.execute(select(Credentials.UID).where(Credentials.UID==UID)).one()
+        session_keys = session.query(SessionKey).filter_by(UID=UID).all() #session.execute(select(SessionKey.UID).where( SessionKey.UID==UID)).all()
+
+        print(user)
 
         user_data = {
             "UID": UID,
@@ -56,6 +59,9 @@ def get_user_data_by_UID(UID: int) -> dict:
             "Password_hash": credentials.Password_hash,
             "Key": [sk.Session_Key for sk in session_keys]
         }
+
+        print(user_data)
+
         return user_data
     except NoResultFound:
         return {}
@@ -82,19 +88,4 @@ def get_user(UID: int) -> Users:
     if not user_data:
         raise LookupError("User doesn't exist")
     return Users(**user_data)
-
-
-
-
-
-
-
-
     
-
-
-
-                    
-
-
-

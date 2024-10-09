@@ -5,7 +5,7 @@ from typing import Annotated, Optional
 from pydantic import BaseModel, AfterValidator
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
-from jwt import encode, decode, ExpiredSignatureError
+from jwt import encode as jwt_encode, decode as jwt_decode, ExpiredSignatureError
 from passlib.context import CryptContext
 
 from ..database.database_models import session, Role, User, Credentials, SessionKey
@@ -29,8 +29,8 @@ class EditUserRequest(BaseModel):
     Password: Optional[str] = None
 
 class Key(BaseModel):
-    access_key: str
-    key_type: str
+    access_token: str
+    token_type: str
 
 # dependency to get the database session
 def get_db():
@@ -71,7 +71,7 @@ async def try_sign_up(sign_up_request: SignUpRequest):
         existing_user = session.query(UserData).filter_by(Email=sign_up_request.Email).one_or_none()
         if existing_user:
             raise LookupError("Email already registered")
-        
+
         sign_up(sign_up_request, session)
     except LookupError as err:
         raise HTTPException(
@@ -88,53 +88,55 @@ def create_session_key(Username: str, UID: int, expires_delta: timedelta):
     encode = {'sub': Username, 'id': UID}
     expires = datetime.now(timezone.utc) + expires_delta
     encode.update({'exp': expires})
-    key = encode(encode, SECRET_KEY, algorithm=ALGORITHM)
-    
-    session_key = SessionKey(UID=UID, SessionKey=key)
+    key = jwt_encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+
+    session_key = SessionKey(UID=UID, Session_Key=key)
     session.add(session_key)
     session.commit()
-    
+
     return key
 
 
 
-@app.post("/account/key", response_model=Key, tags = ['account'])
+@app.post("/key", tags = ['account'])
 async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Key:
-    user = verify_login(form_data.username, form_data.password, session)
+    user = verify_login(form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
-    
-    created_key = create_session_key(user.Username, user.UID, timedelta(minutes=120), session)
-    
-    for key in user.session_keys:
+
+    print(user)
+
+    created_key = create_session_key(user['Username'], user['UID'], timedelta(minutes=120))
+
+    for key in user['Key']:
         try:
-            validate_session_key(key, session)
+            validate_session_key(key)
         except:
             pass
-    
+
     if created_key is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to create session key')
 
-    return Key(access_key= created_key, key_type= 'bearer')
+    return Key(access_token= created_key, token_type= 'bearer')
 
 async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]):
     try:
-        payload = decode(key, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt_decode(key, SECRET_KEY, algorithms=[ALGORITHM])
         Username: str = payload.get('sub')
         UID: int = payload.get('id')
         if Username is None or UID is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
-        
+
         user = get_user(UID,session)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
-        
+
         if key not in [s.SessionKey for s in user.session_keys]:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
-        
+
         return {'username': Username, 'id': UID}
         print(f"User {user.Username} login successfully.")
-    
+
     except ExpiredSignatureError:
         if key in user.session_keys:
             user.session_keys.remove(key)
@@ -194,7 +196,7 @@ def create_account(account_details: create_account_details):
     print(f"User {user.Username} created successfully.")
 
 def create_account_if_not_exist(account_details : create_account_details):
-    
+
     existing_user = session.query(UserData).filter_by(Email=create_account_details.Email).one_or_none()
     if existing_user:
         raise LookupError("Email already registered")
@@ -217,13 +219,13 @@ def edit_credentials(user: Annotated[User, Depends(validate_role(roles=['Manager
         session.commit()
 
         return {"message": f"Password updated seccefully for {Email}"}
-    
+
     except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Credentials not found for the user')
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    
+
 ##edit user acccount detials
 @app.patch('/account/edit/user_data', tags = ['account'])
 def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['Manager']))], Email : str, new_username : str, new_role_id ):
@@ -232,7 +234,7 @@ def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['Manager']
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail='user not found')
     try:
         new_Username= new_username
-        new_Role_id= new_role_id 
+        new_Role_id= new_role_id
         user_data = session.query(UserData).filter_by(UID = user_id).one()
         user_data.Username = new_Username
         user_data.Role_id = new_Role_id
@@ -240,7 +242,7 @@ def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['Manager']
         session.commit()
 
         return {"message": f"User_data updated seccefully for {Email}"}
-    
+
     except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User data not found for the user')
     except Exception as e:
@@ -272,29 +274,3 @@ def delete_account(user: Annotated[User, Depends(validate_role(roles=['Manager']
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(err)
         )
-
-
-
-
-
-
-
-
-    
-
-   
-    
-
-
-
-    
-
-
-
-
-   
-
- 
-
-
-
