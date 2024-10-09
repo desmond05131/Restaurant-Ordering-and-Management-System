@@ -42,4 +42,3 @@ user = session.query(User).filter_by(Username = 'CharlieDowney').one()
 ##test_signup_manager()
 ##test_signup()
 ##test_login()
-
