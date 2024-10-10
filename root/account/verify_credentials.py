@@ -70,7 +70,7 @@ def set_credentials(Email: str, Password: str):
 # Verify credentials and login
 def verify_login(Email: str, Password: str):
     try:
-        user_data = get_user_data_by_UID(Email)
+        user_data = get_user_data_by_UID(get_UID_by_email(Email))
         credentials = session.query(Credentials).filter_by(UID=user_data['UID']).one()
 
         if bcrypt_context.verify(Password, credentials.Password_hash):
@@ -82,16 +82,3 @@ def verify_login(Email: str, Password: str):
         raise ValueError("Invalid Email or user doesn't exist")
     except Exception as e:
         raise ValueError(f"An error occurred during login: {str(e)}")
-
-
-
-
-
-
-
-
-
-
-
-
-
