@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List
 from sqlalchemy import select
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import Session
 from root.database.database_models import User, SessionKey, Credentials, Role, SessionLocal,session
@@ -62,6 +63,9 @@ def get_user_data_by_UID(user_id: int) -> dict:
 
         print(user_data)
 
+
+        print(user_data)
+
         return user_data
     except NoResultFound:
         return {}
@@ -88,4 +92,5 @@ def get_user(user_id: int) -> Users:
     if not user_data:
         raise LookupError("User doesn't exist")
     return Users(**user_data)
+    
     
