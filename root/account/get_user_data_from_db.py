@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import Session
 from root.database.database_models import User, SessionKey, Credentials, Role, SessionLocal,session
@@ -14,14 +15,12 @@ def get_db():
 
 
 class UserData(BaseModel):
-    Role_ID: int 
-    Role_Name: str
-    UID: int 
+    UID: int
     Username: str
     Email: str
     Role_id: int
-    Password_hash: str  
-    Key: List[str] = Field(default_factory=list)  
+    Password_hash: str
+    Key: List[str] = Field(default_factory=list)
 
     def commit(self):
         db_session_keys = [sk.Session_Key for sk in session.query(SessionKey).filter_by(UID=self.UID).all()]
@@ -43,29 +42,35 @@ class UserData(BaseModel):
 
 
 # get user data by UID
-def get_user_data_by_UID(UID: int) -> dict:
+def get_user_data_by_UID(user_id: int) -> dict:
     try:
-        user = session.query(User).filter_by(UID=UID).one()
-        credentials = session.query(Credentials).filter_by(UID=UID).one()
-        session_keys = session.query(SessionKey).filter_by(UID=UID).all()
+        user = session.query(User).filter_by(UID=user_id).one()#session.execute(select(User.UID).where(User.UID==UID)).one()
+        credentials = session.query(Credentials).filter_by(UID=user_id).one() #session.execute(select(Credentials.UID).where(Credentials.UID==UID)).one()
+        session_keys = session.query(SessionKey).filter_by(UID=user_id).all() #session.execute(select(SessionKey.UID).where( SessionKey.UID==UID)).all()
+
+        print(user)
 
         user_data = {
-            "UID": UID,
+            "UID": user_id,
             "Username": user.Username,
             "Email": user.Email,
+            "Role_id": user.Role_id,
             "Password_hash": credentials.Password_hash,
             "Key": [sk.Session_Key for sk in session_keys]
         }
+
+        print(user_data)
+
         return user_data
     except NoResultFound:
         return {}
 
 
 # get role by UID
-def get_role(UID: int) -> str:
+def get_role(user_id: int) -> str:
     try:
-        user = session.query(User).filter_by(UID=UID).one()
-        role = session.query(Role).filter_by(Role_ID=user.Role_id).one()
+        user = session.query(User).filter_by(UID=user_id).one()
+        role = session.query(Role).filter_by(ID=user.Role_id).one()
         return role.Role_Name
     except NoResultFound:
         return None
@@ -73,28 +78,13 @@ def get_role(UID: int) -> str:
 
 class Users(UserData):
     def get_user_role(self):
-        return get_role(self.Role_id, session)
+        return get_role(self.Role_id)
 
 
 # get user object
-def get_user(UID: int) -> Users:
-    user_data = get_user_data_by_UID(UID, session)
+def get_user(user_id: int) -> Users:
+    user_data = get_user_data_by_UID(user_id)
     if not user_data:
         raise LookupError("User doesn't exist")
     return Users(**user_data)
-
-
-
-
-
-
-
-
     
-
-
-
-                    
-
-
-

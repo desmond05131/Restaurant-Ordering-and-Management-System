@@ -3,7 +3,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from root.account.get_user_data_from_db import get_user_data_by_UID
 from root.database.database_models import session, Credentials,User
 from passlib.context import CryptContext
-
+from ..database.data_format import SignUpRequest, EditUserRequest,Key
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 
@@ -35,13 +35,11 @@ def ValidPassword(Password: str):
 
 
 # Validate if user data is a dictionary and perform input checks
-def ValidUserData(data: dict):
-    if not isinstance(data, dict):
-        raise TypeError("Data must be a dictionary")
+def ValidUserData(data: SignUpRequest):
 
-    ValidUsername(data['Username'])
-    ValidEmail(data['Email'])
-    ValidPassword(data['Password'])
+    ValidUsername(data.Username)
+    ValidEmail(data.Email)
+    ValidPassword(data.Password)
 
 
 # Get UID from Email
@@ -70,7 +68,7 @@ def set_credentials(Email: str, Password: str):
 # Verify credentials and login
 def verify_login(Email: str, Password: str):
     try:
-        user_data = get_user_data_by_UID(Email)
+        user_data = get_user_data_by_UID(get_UID_by_email(Email))
         credentials = session.query(Credentials).filter_by(UID=user_data['UID']).one()
 
         if bcrypt_context.verify(Password, credentials.Password_hash):
@@ -82,16 +80,3 @@ def verify_login(Email: str, Password: str):
         raise ValueError("Invalid Email or user doesn't exist")
     except Exception as e:
         raise ValueError(f"An error occurred during login: {str(e)}")
-
-
-
-
-
-
-
-
-
-
-
-
-
