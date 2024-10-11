@@ -69,6 +69,7 @@ def set_credentials(Email: str, Password: str):
 def verify_login(Email: str, Password: str):
     try:
         user_data = get_user_data_by_UID(get_UID_by_email(Email))
+        user_data = get_user_data_by_UID(get_UID_by_email(Email))
         credentials = session.query(Credentials).filter_by(UID=user_data['UID']).one()
 
         if bcrypt_context.verify(Password, credentials.Password_hash):
