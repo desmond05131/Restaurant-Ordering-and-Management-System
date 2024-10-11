@@ -124,7 +124,8 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]) -> U
         if key not in user.Key:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user 3')
 
-        return user 
+        user.current_using_key = key
+        return user
 
     except ExpiredSignatureError:
         if user and key in user.Key:  # Check if `user` is assigned before accessing it
@@ -133,14 +134,14 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]) -> U
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Session key expired')
 
 @app.delete(path='/account/expire_session_key', tags=['account'])
-async def logout(key: Annotated[str, Depends(validate_session_key)]):
+async def logout(user: Annotated[Users, Depends(validate_session_key)]):
     try:
         database_user = session.query(User).filter_by(UID = user.UID).one()
-        print(database_user.session_keys)
-        if key not in database_user.session_keys:
+        print("ahh", user.current_using_key)
+        if "a" not in database_user.session_keys:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user 4')
 
-        database_user.session_keys = [sk for sk in database_user.session_keys if sk.Session_Key != key]
+        database_user.session_keys = [sk for sk in database_user.session_keys if sk.Session_Key != user.current_using_key]
         session.commit()
     except Exception as err:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=err)

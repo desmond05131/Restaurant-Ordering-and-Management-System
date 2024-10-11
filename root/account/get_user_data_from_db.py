@@ -22,8 +22,7 @@ class UserData(BaseModel):
     Role_id: int
     Password_hash: str
     Key: List[str] = Field(default_factory=list)
-    Password_hash: str
-    Key: List[str] = Field(default_factory=list)
+    current_using_key: str = None
 
     def commit(self):
         db_session_keys = [sk.Session_Key for sk in session.query(SessionKey).filter_by(UID=self.UID).all()]
