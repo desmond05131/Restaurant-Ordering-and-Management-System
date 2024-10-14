@@ -6,7 +6,6 @@ from pydantic import BaseModel, AfterValidator
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 from jwt import encode as jwt_encode, decode as jwt_decode, ExpiredSignatureError
-from jwt import encode as jwt_encode, decode as jwt_decode, ExpiredSignatureError
 from passlib.context import CryptContext
 
 from ..database.database_models import session, Role, User, Credentials, SessionKey
@@ -65,19 +64,14 @@ def create_session_key(Username: str, UID: int, expires_delta: timedelta):
     key = jwt_encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
     session_key = SessionKey(UID=UID, Session_Key=key)
-    key = jwt_encode(encode, SECRET_KEY, algorithm=ALGORITHM)
-
-    session_key = SessionKey(UID=UID, Session_Key=key)
     session.add(session_key)
     session.commit()
-
 
     return key
 
 
 @app.post("/key", tags = ['account'])
 async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Key:
-    user = verify_login(form_data.username, form_data.password)
     user = verify_login(form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
@@ -87,18 +81,10 @@ async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, 
     created_key = create_session_key(user['Username'], user['UID'], timedelta(minutes=120))
 
     for key in user['Key']:
-
-    print(user)
-
-    created_key = create_session_key(user['Username'], user['UID'], timedelta(minutes=120))
-
-    for key in user['Key']:
         try:
-            validate_session_key(key)
             validate_session_key(key)
         except:
             pass
-
 
     if created_key is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to create session key')
@@ -109,7 +95,6 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]) -> U
     user = None
 
     try:
-        payload = jwt_decode(key, SECRET_KEY, algorithms=[ALGORITHM])
         payload = jwt_decode(key, SECRET_KEY, algorithms=[ALGORITHM])
         Username: str = payload.get('sub')
         user_id: int = payload.get('id')
@@ -123,6 +108,7 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]) -> U
 
         if key not in user.Key:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user 3')
+        print("WHYYYYYYYYY", user.Key)
 
         user.current_using_key = key
         return user
@@ -136,12 +122,27 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]) -> U
 @app.delete(path='/account/expire_session_key', tags=['account'])
 async def logout(user: Annotated[Users, Depends(validate_session_key)]):
     try:
-        database_user = session.query(User).filter_by(UID = user.UID).one()
-        print("ahh", user.current_using_key)
-        if "a" not in database_user.session_keys:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user 4')
+        session_keys = session.query(SessionKey).filter_by(UID = user.UID).all()
+        current_using_key = user.current_using_key
+        # print("ahh", current_using_key)
+        # print("hereherehere", session_keys[0])
 
-        database_user.session_keys = [sk for sk in database_user.session_keys if sk.Session_Key != user.current_using_key]
+        session_key_found = False
+
+        for session_key in session_keys:
+            print(session_key.Session_Key)
+            if session_key.Session_Key == current_using_key:
+                session_key_found = True
+                break
+
+        if not session_key_found:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user 4')
+        
+        session_keys = session.query(SessionKey).filter_by(
+            UID = user.UID, 
+            Session_Key = current_using_key
+        ).delete(synchronize_session=False)
+
         session.commit()
     except Exception as err:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=err)
@@ -212,13 +213,11 @@ def edit_credentials(user: Annotated[User, Depends(validate_role(roles=['manager
 
         return {"message": f"Password updated seccefully for {Email}"}
 
-
     except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Credentials not found for the user')
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
 
 ##edit user acccount detials
 @app.patch('/account/edit/user_data', tags = ['account'])
@@ -229,7 +228,6 @@ def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['manager']
     try:
         new_Username= new_username
         new_Role_id= new_role_id
-        new_Role_id= new_role_id
         user_data = session.query(UserData).filter_by(UID = user_id).one()
         user_data.Username = new_Username
         user_data.Role_id = new_Role_id
@@ -237,7 +235,6 @@ def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['manager']
         session.commit()
 
         return {"message": f"User_data updated seccefully for {Email}"}
-
 
     except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User data not found for the user')
