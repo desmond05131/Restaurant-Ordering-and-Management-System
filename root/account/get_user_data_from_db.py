@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List
 from sqlalchemy import select
-from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import Session
 from root.database.database_models import User, SessionKey, Credentials, Role, SessionLocal,session
@@ -40,6 +39,7 @@ class UserData(BaseModel):
         user.Username = self.Username
         user.Email = self.Email
         user.Role_id = self.Role_id
+        user.Key = self.Key
         session.commit()
 
 
@@ -60,9 +60,6 @@ def get_user_data_by_UID(user_id: int) -> dict:
             "Password_hash": credentials.Password_hash,
             "Key": [sk.Session_Key for sk in session_keys]
         }
-
-        print(user_data)
-
 
         print(user_data)
 
