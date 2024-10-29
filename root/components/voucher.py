@@ -127,24 +127,24 @@ def apply_voucher(voucher_code: int, UID: int, order_id: int):
 
     
 @app.post("/voucher/create",tags=["Voucher"])
-def create_voucher_endpoint(voucher: voucher_base, voucher_requirement: voucher_requirement_base, token: str = Depends(validate_role('manager','cashier'))):
+def create_voucher_endpoint(voucher: voucher_base, voucher_requirement: voucher_requirement_base,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
     if session.query(Voucher).filter(Voucher.voucher_code == voucher.voucher_code).first() is not None:
         raise HTTPException(status_code=400, detail="Voucher code already exists")
     create_voucher(voucher, voucher_requirement)
     return {"message": "Voucher created successfully"}
 
 @app.post("/voucher/claim",tags=["Voucher"])
-def claim_voucher_endpoint(voucher_id: int, UID: int, token: str = Depends(validate_role('customer','manager'))):
+def claim_voucher_endpoint(voucher_id: int, UID: int,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
     claim_voucher(voucher_id, UID)
     return {"message": "Voucher claimed successfully"}
 
 @app.post("/voucher/redeem",tags=["Voucher"])
-def redeem_voucher_endpoint(voucher_id: int, UID: int, token: str = Depends(validate_role('customer','manager'))):
+def redeem_voucher_endpoint(voucher_id: int, UID: int,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
     redeem_voucher(voucher_id, UID)
     return {"message": "Voucher redeemed successfully"}
 
 @app.get('/voucher/view', tags=["Voucher"])
-def view_voucher(voucher_id: int, voucher_type: Optional[Literal['percentage discount', 'fixed amount discount', 'free item']] = None, token: str = Depends(validate_role('manager', 'customer'))):
+def view_voucher( user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))],voucher_id: int, voucher_type: Optional[Literal['percentage discount', 'fixed amount discount', 'free item']] = None):
     query = session.query(UserVoucher).filter(UserVoucher.voucher_id == voucher_id)
     if voucher_type:
         query = query.join(Voucher).filter(Voucher.voucher_type == voucher_type)

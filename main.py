@@ -131,7 +131,7 @@ def generate_test_data():
             create_item_ingredient(ing)
 
 # Call the function to populate the database with test data
-generate_test_data()
+# generate_test_data()
 
 
 # def test_login():
@@ -139,8 +139,8 @@ generate_test_data()
 
 # user = session.query(User).filter_by(Username = 'CharlieDowney').one()
 
-test_signup_manager()
-test_signup()
+# test_signup_manager()
+# test_signup()
 ##test_login()
 ##get_item(1)
 

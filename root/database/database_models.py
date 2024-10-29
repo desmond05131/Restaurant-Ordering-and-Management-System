@@ -31,6 +31,7 @@ class User(Base):
     role = relationship('Role', back_populates='users')
     credentials = relationship('Credentials', back_populates='user', uselist=False)
     session_keys = relationship('SessionKey', back_populates='user')
+    shopping_cart = relationship('ShoppingCart', back_populates='user')
     order = relationship('Order', back_populates='user')
     user_voucher = relationship('UserVoucher', back_populates='user')
     user_item_rating = relationship('UserItemRating', back_populates='user')
@@ -112,7 +113,7 @@ class TableNumber(Base):
     __tablename__ = 'TableNumber'
     Table_id = Column(Integer, primary_key=True, autoincrement=True)
     Status = Column(Enum('Occupied','Available','Reserved'), default='Available')
-    cart = relationship('ShoppingCart', back_populates='table_number')
+    shopping_cart = relationship('ShoppingCart', back_populates='table_number')
     order = relationship('Order', back_populates='table_number')
 
 class ShoppingCart(Base):
@@ -128,12 +129,12 @@ class ShoppingCart(Base):
     RoundingAdjustment = Column(Float, nullable=False)
     NetTotal = Column(Float, nullable=False)
     Status = Column(Enum('Active','Expired','Submitted'), default='Active')
-    LastUpdate = Column(DateTime,ForeignKey('CartItems.Added_time'))
+    LastUpdate = Column(DateTime)
     table_number = relationship('TableNumber', back_populates='shopping_cart')
     user = relationship('User', back_populates='shopping_cart')
     voucher = relationship('Voucher', back_populates='shopping_cart')
     cart_items = relationship('CartItem', back_populates='cart')
-    order = relationship('OrderItem', back_populates='shopping_cart')
+    order = relationship('Order', back_populates='shopping_cart')
 
 class CartItem(Base):
     __tablename__ = 'CartItems'
@@ -156,10 +157,10 @@ class Order(Base):
     Time_Placed = Column(DateTime, default= datetime.now(timezone.utc))
     VoucherApplied = Column(Integer, ForeignKey('voucher.voucher_id'), nullable=True)
     Subtotal = Column(Float,ForeignKey('ShoppingCart.Subtotal'), nullable=False)
-    ServiceCharge = Column(Float,ForeignKey('ShoppingCart.ServiceCharge'), nullable=False)
-    ServiceTax = Column(Float,ForeignKey('ShoppingCart.ServiceTax'), nullable=False)
-    RoundinfAdjustment = Column(Float,ForeignKey('ShoppingCart.RoundingAdjustment'), nullable=False)
-    NetTotal = Column(Float,ForeignKey('ShoppingCart.NetTotal'), nullable=False)
+    ServiceCharge = Column(Float,nullable=False)
+    ServiceTax = Column(Float,nullable=False)
+    RoundinfAdjustment = Column(Float,nullable=False)
+    NetTotal = Column(Float,nullable=False)
     PayingMethod = Column(Enum('Not Paid Yet','Cash','Credit Card','Debit Card','E-Wallet'), default='Not Paid Yet', nullable=False)
     table_number = relationship('TableNumber', back_populates='order')
     user = relationship('User', back_populates='order')
@@ -189,6 +190,7 @@ class Voucher(Base):
     begin_date = Column(DateTime, nullable=True)
     required_points = Column(Integer, nullable=True)
     usage_limit = Column(Integer)
+    shopping_cart = relationship('ShoppingCart', back_populates='voucher')
     requirement = relationship('VoucherRequirement', back_populates= 'voucher')
     user_voucher = relationship('UserVoucher', back_populates='voucher')
 
