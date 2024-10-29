@@ -60,7 +60,7 @@ def generate_test_data():
 
 # Create inventory entries
     for inv in inventory_data:
-        create_ingredient(inv)
+        create_inventory(inv)
 
 # Sample menu items data
     menu_items_data = [
