@@ -5,14 +5,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import Session
 from root.database.database_models import User, SessionKey, Credentials, Role, SessionLocal,session
 
-# Dependency to provide database session
-def get_db():
-    session = session
-    try:
-        yield session
-    finally:
-        session.close()
-
 
 class UserData(BaseModel):
     UID: int
