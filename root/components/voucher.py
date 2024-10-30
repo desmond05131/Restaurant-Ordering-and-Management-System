@@ -7,8 +7,8 @@ from sqlalchemy import select, and_, func
 from root.account.get_user_data_from_db import get_role
 from root.components.inventory_management import item, inventory
 from root.account.account import validate_role
-from root.database.database_models import User,VoucherRequirement, Inventory, Order, OrderItem, session, Menu_items, Item_ingredients, CartItem, ShoppingCart, Voucher
-from root.database.data_format import *
+from root.database.database_models import User,VoucherRequirement, Inventory, Order, OrderItem, session, MenuItem, ItemIngredient, CartItem, ShoppingCart, Voucher
+from root.database.data_format import voucher_base, voucher_requirement_base, UserVoucher
 from api import app
 
 
@@ -24,7 +24,7 @@ def create_voucher(voucher: voucher_base, voucher_requirement: voucher_requireme
         usage_limit = voucher.usage_limit
     )
     session.add(new_voucher)
-    session.flush(new_voucher)
+    session.flush([new_voucher])
    
     new_voucher_requirement = VoucherRequirement(
         voucher_id = new_voucher.voucher_id,
@@ -39,48 +39,48 @@ def create_voucher(voucher: voucher_base, voucher_requirement: voucher_requireme
     return new_voucher
     
    
-def claim_voucher(voucher_id: int, UID: int):
+def claim_voucher(voucher_id: int, user_id: int):
     voucher = session.query(Voucher).filter(Voucher.voucher_id == voucher_id).first()
     if voucher is None:
         raise HTTPException(status_code=404, detail="Voucher not found")
-    user = session.query(User).filter(User.UID == UID).first()
+    user = session.query(User).filter(User.user_id == user_id).first()
     new_user_voucher = UserVoucher(
-        UID = UID,
+        user_id = user_id,
         voucher_id = voucher_id
     )
     session.add(new_user_voucher)
     session.commit()
-    print(f"User {user.Username} has successfully claimed voucher {voucher.voucher_code}")
+    print(f"User {user.username} has successfully claimed voucher {voucher.voucher_code}")
 
 
-def redeem_voucher(voucher_id: int, UID: int):
+def redeem_voucher(voucher_id: int, user_id: int):
     voucher = session.query(Voucher).filter(Voucher.voucher_id == voucher_id).first()
     if voucher is None:
         raise HTTPException(status_code=404, detail="Voucher not found")
-    user = session.query(User).filter(User.UID == UID).first()
-    if user.Points < voucher.required_points:
+    user = session.query(User).filter(User.user_id == user_id).first()
+    if user.points < voucher.required_points:
         raise HTTPException(status_code=400, detail="User does not have enough points")
-    user.Points -= voucher.required_points
+    user.points -= voucher.required_points
     new_user_voucher = UserVoucher(
-        UID = UID,
+        user_id = user_id,
         voucher_id = voucher_id
     )
     session.add(new_user_voucher)
     session.commit()
-    print(f"User {user.Username} has successfully redeemed voucher {voucher.voucher_code}")
+    print(f"User {user.username} has successfully redeemed voucher {voucher.voucher_code}")
 
 
 
-def apply_voucher(voucher_code: int, UID: int, order_id: int):
+def apply_voucher(voucher_code: int, user_id: int, order_id: int):
     voucher = session.query(Voucher).filter(Voucher.voucher_code == voucher_code).first()
     if voucher is None:
         raise HTTPException(status_code=404, detail="Voucher not found")
     voucher_requirement = session.query(VoucherRequirement).filter(VoucherRequirement.voucher_id == voucher.voucher_id).first()
-    user = session.query(User).filter(User.UID == UID).first()
-    user_voucher = session.query(UserVoucher).filter(and_(UserVoucher.UID == UID, UserVoucher.voucher_id == voucher.voucher_id)).first()
+    user = session.query(User).filter(User.user_id == user_id).first()
+    user_voucher = session.query(UserVoucher).filter(and_(UserVoucher.user_id == user_id, UserVoucher.voucher_id == voucher.voucher_id)).first()
     if user_voucher is None:
         raise HTTPException(status_code=400, detail="User has not claimed this voucher")
-    cart = session.query(ShoppingCart).filter(ShoppingCart.UID == UID,func.date(ShoppingCart.Creation_time) == datetime.now().date()).order_by(ShoppingCart.Creation_time.desc()).first()
+    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id,func.date(ShoppingCart.creation_time) == datetime.now().date()).order_by(ShoppingCart.creation_time.desc()).first()
     if cart is None:    
         raise HTTPException(status_code=404, detail="Cart not found")
     if voucher.expiry_date < datetime.now().date():
@@ -95,19 +95,19 @@ def apply_voucher(voucher_code: int, UID: int, order_id: int):
     current_time = datetime.now().time()
     if voucher_requirement.requirement_time > current_time:
         raise HTTPException(status_code=400, detail="Voucher has not reached requirement time")
-    if voucher_requirement.minimum_spend > cart.Subtotal:
+    if voucher_requirement.minimum_spend > cart.subtotal:
         raise HTTPException(status_code=400, detail="Minimum spend not reached")
     
     if voucher.voucher_type == 'percentage discount':
-        discount = cart.Subtotal * voucher.discount_value
+        discount = cart.subtotal * voucher.discount_value
         if voucher_requirement.capped_amount is not None:
             if discount > voucher_requirement.capped_amount:
                 discount = voucher_requirement.capped_amount
-        cart.Subtotal -= discount
+        cart.subtotal -= discount
 
     elif voucher.voucher_type == 'fixed amount discount':
         discount = voucher.discount_value
-        cart.Subtotal -= discount
+        cart.subtotal -= discount
 
 
     elif voucher.voucher_type == 'free item':
@@ -120,9 +120,9 @@ def apply_voucher(voucher_code: int, UID: int, order_id: int):
         )
         session.add(new_order_item)
 
-    cart.VoucherApplied = voucher_code
+    cart.voucher_applied = voucher_code
     session.commit()
-    print(f"User {user.Username} has successfully applied voucher {voucher.voucher_code} to order {order_id}")
+    print(f"User {user.username} has successfully applied voucher {voucher.voucher_code} to order {order_id}")
        
 
     
@@ -134,13 +134,13 @@ def create_voucher_endpoint(voucher: voucher_base, voucher_requirement: voucher_
     return {"message": "Voucher created successfully"}
 
 @app.post("/voucher/claim",tags=["Voucher"])
-def claim_voucher_endpoint(voucher_id: int, UID: int,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
-    claim_voucher(voucher_id, UID)
+def claim_voucher_endpoint(voucher_id: int, user_id: int,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
+    claim_voucher(voucher_id, user_id)
     return {"message": "Voucher claimed successfully"}
 
 @app.post("/voucher/redeem",tags=["Voucher"])
-def redeem_voucher_endpoint(voucher_id: int, UID: int,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
-    redeem_voucher(voucher_id, UID)
+def redeem_voucher_endpoint(voucher_id: int, user_id: int,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
+    redeem_voucher(voucher_id, user_id)
     return {"message": "Voucher redeemed successfully"}
 
 @app.get('/voucher/view', tags=["Voucher"])

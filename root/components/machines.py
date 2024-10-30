@@ -8,7 +8,7 @@ from root.components.voucher import voucher_base, voucher_requirement_base, crea
 from root.account.get_user_data_from_db import get_role
 from root.components.inventory_management import item, inventory
 from root.account.account import validate_role
-from root.database.database_models import User, Inventory,Machines, Order,UserItemRating,UserOverallFeedback, OrderItem, session, Menu_items, Item_ingredients, CartItem, ShoppingCart, Voucher
+from root.database.database_models import User, Inventory,Machine, Order,UserItemRating,UserOverallFeedback, OrderItem, session, MenuItem, ItemIngredient, CartItem, ShoppingCart, Voucher
 from root.database.data_format import *
 from api import app
 
@@ -16,7 +16,7 @@ from api import app
 
 @app.post('/machines/add-machine', tags=['machines'])
 def add_machine(machine_name: str,machine_type: str, cost:float, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
-    new_machine = Machines(
+    new_machine = Machine(
         machine_name = machine_name,
         machine_type = machine_type,
         cost = cost
@@ -30,7 +30,7 @@ def add_machine(machine_name: str,machine_type: str, cost:float, user: Annotated
 
 @app.patch('/machines/edit-machine', tags=['machines'])
 def edit_machine(machine_id: str,machine_name: str,machine_type: str, cost:float, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
-    machine_to_edit = session.query(Machines).filter(Machines.machine_id == machine_id).one_or_none()
+    machine_to_edit = session.query(Machine).filter(Machine.machine_id == machine_id).one_or_none()
     if not machine_to_edit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found")
     machine_to_edit.machine_name = machine_name
@@ -42,7 +42,7 @@ def edit_machine(machine_id: str,machine_name: str,machine_type: str, cost:float
 
 @app.delete('/machines/delete-machine', tags=['machines'])
 def delete_machine(machine_id: str, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
-    machine_to_delete = session.query(Machines).filter(Machines.machine_id == machine_id).one_or_none()
+    machine_to_delete = session.query(Machine).filter(Machine.machine_id == machine_id).one_or_none()
     if not machine_to_delete:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found")
     session.delete(machine_to_delete)
@@ -52,7 +52,7 @@ def delete_machine(machine_id: str, user: Annotated[User, Depends(validate_role(
 
 @app.patch('/machines/report_issue', tags=['machines'])
 def report_issue(machine_id: str, issue_description: str, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
-    machine = session.query(Machines).filter(Machines.machine_id == machine_id).one_or_none()
+    machine = session.query(Machine).filter(Machine.machine_id == machine_id).one_or_none()
     if not machine:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found")
     machine.machine_status = "Under maintenance"
@@ -65,7 +65,7 @@ def report_issue(machine_id: str, issue_description: str, user: Annotated[User, 
 
 @app.patch('/machines/resolve_issue', tags=['machines'])
 def resolve_issue(machine_id: str, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
-    machine = session.query(Machines).filter(Machines.machine_id == machine_id).one_or_none()
+    machine = session.query(Machine).filter(Machine.machine_id == machine_id).one_or_none()
     if not machine:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found")
     machine.machine_status = "Available"
@@ -78,7 +78,7 @@ def resolve_issue(machine_id: str, user: Annotated[User, Depends(validate_role(r
 
 @app.get('/machines/get-all-machines', tags=['machines'])
 def get_all_machines(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
-    machines = session.query(Machines).all()
+    machines = session.query(Machine).all()
     return machines
 
 

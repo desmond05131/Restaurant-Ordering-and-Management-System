@@ -9,24 +9,24 @@ from root.components.voucher import voucher_base, voucher_requirement_base, crea
 from root.account.get_user_data_from_db import get_role
 from root.components.inventory_management import item, inventory
 from root.account.account import validate_role
-from root.database.database_models import User, Inventory, Order, OrderItem, session,UserItemRating,UserOverallFeedback, Menu_items,Item_ingredients, CartItem, ShoppingCart, Voucher
+from root.database.database_models import User, Inventory, Order, OrderItem, session,UserItemRating,UserOverallFeedback, MenuItem,ItemIngredient, CartItem, ShoppingCart, Voucher
 from root.database.data_format import *
 from api import app
 
 
 def create_cart(cart_info: shopping_cart):
-    cart = session.query(ShoppingCart).filter(ShoppingCart.Table_id == cart_info.Table_number).filter(ShoppingCart.Status == 'Active').one_or_none()
+    cart = session.query(ShoppingCart).filter(ShoppingCart.table_id == cart_info.table_number).filter(ShoppingCart.status == 'Active').one_or_none()
     if cart:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Table already has an active cart,please ask the waiter for assistance")
    
     new_cart = ShoppingCart(
-        UID = cart_info.UID,
-        Table_number = cart_info.Table_number,
-        Creation_time = datetime.now(),
-        VoucherApplied = 0,
-        Total_Amount = 0.0,
-        Status = 'Active',
-        LastUpdate = datetime.now()
+        user_id = cart_info.user_id,
+        table_id = cart_info.table_number,
+        creation_time = datetime.now(),
+        voucher_applied = 0,
+        total_amount = 0.0,
+        status = 'Active',
+        last_update = datetime.now()
     )
 
     session.add(new_cart)
@@ -36,13 +36,13 @@ def create_cart(cart_info: shopping_cart):
 
 def cart_add_item(item: cart_item):
     cart_item = CartItem(
-        Item_id = item.Item_id,
-        Cart_id = item.Cart_id,
-        Item_Name = item.Item_Name,
-        Quantity = item.Quantity,
-        Remarks = item.Remarks,
-        Price = item.Price,
-        Added_time = datetime.now()
+        item_id = item.item_id,
+        cart_id = item.cart_id,
+        item_name = item.item_name,
+        quantity = item.quantity,
+        remarks = item.remarks,
+        price = item.price,
+        added_time = datetime.now()
     )
 
     session.add(cart_item)
@@ -51,48 +51,48 @@ def cart_add_item(item: cart_item):
     return cart_item
 
 def calculate_subtotal(cart_id: int):
-    cart = session.query(ShoppingCart).filter(ShoppingCart.Cart_id == cart_id).one()
-    cart_items = session.query(CartItem).filter(CartItem.Cart_id == cart_id).all()
-    Subtotal = 0.0
+    cart = session.query(ShoppingCart).filter(ShoppingCart.cart_id == cart_id).one()
+    cart_items = session.query(CartItem).filter(CartItem.cart_id == cart_id).all()
+    subtotal = 0.0
     for item in cart_items:
-        Subtotal += item.Quantity * item.Price
+        subtotal += item.quantity * item.price
 
-    cart.Subtotal = Subtotal
+    cart.subtotal = subtotal
     session.commit()
 
-    return cart.Subtotal
+    return cart.subtotal
 
 def calculate_net_total(cart_id: int):
-    cart = session.query(ShoppingCart).filter(ShoppingCart.Cart_id == cart_id).one()
-    cart.ServiceCharge = cart.Subtotal * 0.06
-    cart.ServiceTax = cart.Subtotal * 0.06
-    cart.NetTotal = cart.Subtotal + cart.ServiceCharge + cart.ServiceTax
-    net_total_str = f"{cart.NetTotal:.2f}"
+    cart = session.query(ShoppingCart).filter(ShoppingCart.cart_id == cart_id).one()
+    cart.service_charge = cart.subtotal * 0.06
+    cart.service_tax = cart.subtotal * 0.06
+    cart.net_total = cart.subtotal + cart.service_charge + cart.service_tax
+    net_total_str = f"{cart.net_total:.2f}"
     second_decimal = int(net_total_str[-1])
     if second_decimal in {1, 2, 3, 4}:
-        cart.NetTotal = round(cart.NetTotal, 1) + 0.05
+        cart.net_total = round(cart.net_total, 1) + 0.05
     elif second_decimal in {6, 7, 8, 9}:
-        cart.NetTotal = round(cart.NetTotal, 1) + 0.10
+        cart.net_total = round(cart.net_total, 1) + 0.10
 
-    cart.NetTotal = round(cart.NetTotal, 2)
-    cart.RoundingAdjustment = cart.NetTotal - (cart.Subtotal + cart.ServiceCharge + cart.ServiceTax)
+    cart.net_total = round(cart.net_total, 2)
+    cart.rounding_adjustment = cart.net_total - (cart.subtotal + cart.service_charge + cart.service_tax)
     session.commit()
 
-    return cart.NetTotal
+    return cart.net_total
 
 
 def SubmitOrder(order_info: order_created, items: items_in_cart):
     new_order = Order(
-        UID = order_info.UID,
-        Table_number = order_info.Table_number,
-        Time_Placed = datetime.now(),
-        VoucherApplied = order_info.VoucherApplied,
-        Subtotal = order_info.Subtotal,
-        ServiceCharge = order_info.ServiceCharge,
-        ServiceTax = order_info.ServiceTax,
-        RoundingAdjjustment = order_info.RoundingAdjjustment,
-        NetTotal = order_info.NetTotal,
-        PayingMethod = 'Not Paid Yet'
+        user_id = order_info.user_id,
+        table_number = order_info.table_number,
+        time_placed = datetime.now(),
+        voucher_applied = order_info.voucher_applied,
+        subtotal = order_info.subtotal,
+        service_charge = order_info.service_charge,
+        service_tax = order_info.service_tax,
+        rounding_adjustment = order_info.rounding_adjustment,
+        net_total = order_info.net_total,
+        paying_method = 'Not Paid Yet'
     )
 
     session.add(new_order)
@@ -101,22 +101,22 @@ def SubmitOrder(order_info: order_created, items: items_in_cart):
 
     for item in items.items:
         order_item = OrderItem(
-            Order_id = new_order.Order_id,
-            Item_id = item.Item_id,
-            Item_Name = item.Item_Name,
-            Quantity = item.Quantity,
-            Remarks = item.Remarks,
-            Status = 'Order Received'
+            order_id = new_order.order_id,
+            item_id = item.item_id,
+            item_name = item.item_name,
+            quantity = item.quantity,
+            remarks = item.remarks,
+            status = 'Order Received'
         )
 
         session.add(order_item)
         session.commit()
 
-    return new_order.Order_id
+    return new_order.order_id
 
 
 def get_order(order_id: int):
-    return session.query(Order).filter(Order.Order_id ==order_id).one()
+    return session.query(Order).filter(Order.order_id ==order_id).one()
 
 def delete_all_order():
     session.query(Order).delete()
@@ -127,16 +127,16 @@ def delete_all_order():
 @app.get('/menu/view', tags=['menu'])
 async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef', 'cashier', 'customer']))], search_keyword: str = None) -> List[Get_item]:
 
-    if get_role(user.UID) in ['manager', 'chef']:
+    if get_role(user.user_id) in ['manager', 'chef']:
         if search_keyword:
             search_keyword = f"%{search_keyword}%"
-            query = session.query(Menu_items).where(
-                Menu_items.Item_name.ilike(search_keyword) |
-                Menu_items.Description.ilike(search_keyword) |
-                Menu_items.Category.ilike(search_keyword)
+            query = session.query(MenuItem).where(
+                MenuItem.item_name.ilike(search_keyword) |
+                MenuItem.description.ilike(search_keyword) |
+                MenuItem.category.ilike(search_keyword)
             )
         else:
-            query = session.query(Menu_items)
+            query = session.query(MenuItem)
         
         items = []
 
@@ -145,31 +145,31 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
             row_dict = {}
             row_dict["ingredients"] = []
 
-            row_dict["Item_id"] = row.Item_id
-            row_dict["Item_name"] = row.Item_name
-            row_dict["Price"] = row.Price
-            row_dict["Description"] = row.Description
-            row_dict["Category"] = row.Category
-            row_dict["Picture_link"] = row.Picture_link
+            row_dict["item_id"] = row.item_id
+            row_dict["item_name"] = row.item_name
+            row_dict["price"] = row.price
+            row_dict["description"] = row.description
+            row_dict["category"] = row.category
+            row_dict["picture_link"] = row.picture_link
 
             for inventory in session.execute(
                     select(
-                        Item_ingredients.Inventory_id, Item_ingredients.quantity
+                        ItemIngredient.inventory_id, ItemIngredient.quantity
                     ).where(
-                        row.Item_id == Item_ingredients.Item_id
+                        row.item_id == ItemIngredient.item_id
                     )).all():
 
                 ingredient_row = session.execute(
                     select(
-                        Inventory.Inventory_name,
-                        Inventory.Unit
+                        Inventory.inventory_name,
+                        Inventory.unit
                     ).where(
-                        Inventory.Inventory_id == inventory.Inventory_id
+                        Inventory.inventory_id == inventory.inventory_id
                     )).one()
 
                 row_dict["ingredients"].append({
-                    "name": ingredient_row.Inventory_name,
-                    "unit": ingredient_row.Unit,
+                    "name": ingredient_row.inventory_name,
+                    "unit": ingredient_row.unit,
                     "quantity": inventory.quantity
                 })
 
@@ -179,136 +179,136 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
     else:
         items = []
 
-        for item in session.query(Menu_items).order_by(Menu_items.Item_id).all():
+        for item in session.query(MenuItem).order_by(MenuItem.item_id).all():
             items.append(Get_item(
-                Item_id = item.Item_id,
-                Item_name = item.Item_name,
-                Price = item.Price,
-                Description = item.Description,
-                Category = item.Category,
-                Picture_link = item.Picture_link
+                item_id = item.item_id,
+                item_name = item.item_name,
+                price = item.price,
+                description = item.description,
+                category = item.category,
+                picture_link = item.picture_link
             ))
 
         return items
 
 @app.patch('/cart/add-item', tags=['cart'])
 def add_items_to_cart(item: add_item_to_cart,table_number: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
-    UID = user.UID
-    cart = session.query(ShoppingCart).filter(ShoppingCart.UID == UID).filter(ShoppingCart.Status == 'Active').one()
+    user_id = user.user_id
+    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
     if not cart:
-        create_cart(shopping_cart(UID=UID, Table_number=table_number, Status='Active'))
+        create_cart(shopping_cart(user_id=user_id, table_number=table_number, status='Active'))
 
-    item_price = session.query(Menu_items).filter(Menu_items.Item_id == item.Item_id).one().Price
-    cart_item = cart_add_item(cart_item(**item.model_dump(), Cart_id=cart.Cart_id, Price=item_price))
+    item_price = session.query(MenuItem).filter(MenuItem.item_id == item.item_id).one().price
+    cart_item = cart_add_item(cart_item(**item.model_dump(), cart_id=cart.cart_id, price=item_price))
     
 
     session.commit()
     
-    return {"message": f"Item {cart_item.Item_Name} added to cart"}
+    return {"message": f"Item {cart_item.item_name} added to cart"}
 
 @app.patch('/cart/remove-item', tags=['cart'])
 def remove_item_from_cart(item_id: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
-    UID = user.UID
-    cart = session.query(ShoppingCart).filter(ShoppingCart.UID == UID).filter(ShoppingCart.Status == 'Active').one()
+    user_id = user.user_id
+    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
     if not cart:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
-    cart_item = session.query(CartItem).filter(CartItem.Item_id == item_id).filter(CartItem.Cart_id == cart.Cart_id).one()
+    cart_item = session.query(CartItem).filter(CartItem.item_id == item_id).filter(CartItem.cart_id == cart.cart_id).one()
     if not cart_item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found in cart")
     
-    item_price = session.query(Menu_items).filter(Menu_items.Item_id == item_id).one().Price
+    item_price = session.query(MenuItem).filter(MenuItem.item_id == item_id).one().price
 
     session.delete(cart_item)
     session.commit()
 
-    return {"message": f"Item {cart_item.Item_Name} removed from cart"}
+    return {"message": f"Item {cart_item.item_name} removed from cart"}
 
 @app.patch('/cart/update-item', tags=['cart'])
 def update_item_in_cart(item: add_item_to_cart, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
-    UID = user.UID
-    cart = session.query(ShoppingCart).filter(ShoppingCart.UID == UID).filter(ShoppingCart.Status == 'Active').one()
+    user_id = user.user_id
+    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
     if not cart:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
-    cart_item = session.query(CartItem).filter(CartItem.Item_id == item.Item_id).filter(CartItem.Cart_id == cart.Cart_id).one()
+    cart_item = session.query(CartItem).filter(CartItem.item_id == item.item_id).filter(CartItem.cart_id == cart.cart_id).one()
     if not cart_item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found in cart")
 
-    cart_item.Quantity = item.Quantity
-    cart_item.Remarks = item.Remarks
+    cart_item.quantity = item.quantity
+    cart_item.remarks = item.remarks
 
-    if cart_item.Quantity == 0:
+    if cart_item.quantity == 0:
         session.delete(cart_item)
         
     session.commit()
 
-    return {"message": f"Item {cart_item.Item_Name} updated in cart"}
+    return {"message": f"Item {cart_item.item_name} updated in cart"}
 
 @app.patch('/cart/apply-voucher', tags=['cart'])
 def apply_voucher_to_cart(voucher_code: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
-    UID = user.UID
-    cart = session.query(ShoppingCart).filter(ShoppingCart.UID == UID).filter(ShoppingCart.Status == 'Active').one()
+    user_id = user.user_id
+    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
     if not cart:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
-    apply_voucher(voucher_code, UID, cart.Cart_id)
+    apply_voucher(voucher_code, user_id, cart.cart_id)
     return {"message": "Voucher applied successfully"}
 
 @app.patch('/cart/remove-voucher', tags=['cart'])
 def remove_voucher_from_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
-    UID = user.UID
-    cart = session.query(ShoppingCart).filter(ShoppingCart.UID == UID).filter(ShoppingCart.Status == 'Active').one()
+    user_id = user.user_id
+    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
     if not cart:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
-    cart.VoucherApplied = None
-    cart.Subtotal = calculate_subtotal(cart.Cart_id)
-    cart.NetTotal = calculate_net_total(cart.Cart_id)
+    cart.voucher_applied = None
+    cart.subtotal = calculate_subtotal(cart.cart_id)
+    cart.net_total = calculate_net_total(cart.cart_id)
     session.commit()
 
     return {"message": "Voucher removed from cart"}
 
 @app.get('/cart/view', tags=['cart'])
 def view_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
-    UID = user.UID
-    cart = session.query(ShoppingCart).filter(ShoppingCart.UID == UID).filter(ShoppingCart.Status == 'Active').one()
+    user_id = user.user_id
+    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
     if not cart:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
-    cart_items = session.query(CartItem).filter(CartItem.Cart_id == cart.Cart_id).all()
-    items = [{"item_name": item.Item_Name, "quantity": item.Quantity} for item in cart_items]
+    cart_items = session.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
+    items = [{"item_name": item.item_name, "quantity": item.quantity} for item in cart_items]
 
-    Subtotal = calculate_subtotal(cart.Cart_id)
-    NetTotal = calculate_net_total(cart.Cart_id)
+    subtotal = calculate_subtotal(cart.cart_id)
+    net_total = calculate_net_total(cart.cart_id)
 
     return {
-        "table_number": cart.Table_id,
-        "cart_id": cart.Cart_id,
+        "table_number": cart.table_number,
+        "cart_id": cart.cart_id,
         "items": items,
-        "voucher_applied": cart.VoucherApplied,
-        "subtotal": Subtotal,
-        "service_charge": cart.ServiceCharge,
-        "service_tax": cart.ServiceTax,
-        "rounding_adjustment": cart.RoundingAdjustment,
-        "net_total": NetTotal,
-        "status": cart.Status,
+        "voucher_applied": cart.voucher_applied,
+        "subtotal": subtotal,
+        "service_charge": cart.service_charge,
+        "service_tax": cart.service_tax,
+        "rounding_adjustment": cart.rounding_adjustment,
+        "net_total": net_total,
+        "status": cart.status,
     }
 
 
 @app.patch('/cart/submit', tags=['cart'])
 def submit_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
-    UID = user.UID
-    cart = session.query(ShoppingCart).filter(ShoppingCart.UID == UID).filter(ShoppingCart.Status == 'Active').one()
+    user_id = user.user_id
+    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
     if not cart:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
-    cart_items = session.query(CartItem).filter(CartItem.Cart_id == cart.Cart_id).all()
+    cart_items = session.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
     if not cart_items:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart is empty")
 
-    order = SubmitOrder(order_created(UID=UID, Table_number=cart.Table_id, Subtotal=cart.Subtotal, ServiceCharge=cart.ServiceCharge, ServiceTax=cart.ServiceTax, RoundingAdjjustment=cart.RoundingAdjustment, NetTotal=cart.NetTotal), items_in_cart(items=[add_items_to_order(**item.model_dump()) for item in cart_items]))
-    cart.Status = 'Submitted'
+    order = SubmitOrder(order_created(user_id=user_id, table_number=cart.table_number, subtotal=cart.subtotal, service_charge=cart.service_charge, service_tax=cart.service_tax, rounding_adjustment=cart.rounding_adjustment, net_total=cart.net_total), items_in_cart(items=[add_items_to_order(**item.model_dump()) for item in cart_items]))
+    cart.status = 'Submitted'
     session.commit()
 
 @app.on_event("startup")
@@ -316,113 +316,113 @@ def submit_cart(user: Annotated[User, Depends(validate_role(roles=['customer','m
 def expire_old_carts():
     ten_minutes_ago = datetime.now() - timedelta(minutes=10)
     expired_carts = session.query(ShoppingCart).filter(
-        ShoppingCart.LastUpdate < ten_minutes_ago,
-        ShoppingCart.Status == 'Active'
+        ShoppingCart.last_update < ten_minutes_ago,
+        ShoppingCart.status == 'Active'
     ).all()
 
     for cart in expired_carts:
-        cart.Status = 'Expired'
+        cart.status = 'Expired'
         session.commit()
 
 @app.get('/orders/view/{order_id}', response_model= order_created, tags=['orders'])
 def view_order_details(order_id: int, user: Annotated[User, Depends(validate_role(roles=['Manager', 'Chef']))]):
     order = session.query(Order).filter(
-        Order.UID == user.UID, func.date(Order.Time_Placed) == datetime.now().date()).order_by(Order.Time_Placed.desc()).first()
+        Order.user_id == user.user_id, func.date(Order.time_placed) == datetime.now().date()).order_by(Order.time_placed.desc()).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
-    order_items = session.query(OrderItem).filter_by(Order_ID=order.Order_id).all()
-    items = [{"item_name": item.Item_Name, "quantity": item.Quantity, "remarks" : item.Remarks,"status": item.Status} for item in order_items]
+    order_items = session.query(OrderItem).filter_by(order_id=order.order_id).all()
+    items = [{"item_name": item.item_name, "quantity": item.quantity, "remarks" : item.remarks,"status": item.status} for item in order_items]
 
-    customer = session.query(User).filter_by(UID=order.UID).one()
+    customer = session.query(User).filter_by(user_id=order.user_id).one()
     if not customer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
 
     return {
-        "table_number": order.Table_number,
-        "order_id": order.Order_id,
-        "customer_name": customer.Username,
+        "table_number": order.table_number,
+        "order_id": order.order_id,
+        "customer_name": customer.username,
         "order_items": items,
-        "time_placed": order.Time_Placed,
-        "voucher_applied": order.VoucherApplied,
-        "Subtotal": order.Subtotal,
-        "ServiceCharge": order.ServiceCharge,
-        "ServiceTax": order.ServiceTax,
-        "RoundingAdjustment": order.RoundingAdjustment,
-        "NetTotal": order.NetTotal,
+        "time_placed": order.time_placed,
+        "voucher_applied": order.voucher_applied,
+        "subtotal": order.subtotal,
+        "service_charge": order.service_charge,
+        "service_tax": order.service_tax,
+        "rounding_adjustment": order.rounding_adjustment,
+        "net_total": order.net_total,
         "paying_method": 'Not Paid Yet'
     }
 
 @app.patch('orders/cancel_item', tags=['orders'])
 def cancel_order_item(user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))], Item_id: int):
     order = session.query(Order).filter(
-        Order.UID == user.UID, func.date(Order.Time_Placed) == datetime.now().date()).order_by(Order.Time_Placed.desc()).first()
+        Order.user_id == user.user_id, func.date(Order.time_placed) == datetime.now().date()).order_by(Order.time_placed.desc()).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
-    order_item = session.query(OrderItem).filter(OrderItem.Order_id == order.Order_id, OrderItem.Item_id == Item_id).one()
+    order_item = session.query(OrderItem).filter(OrderItem.order_id == order.order_id, OrderItem.item_id == Item_id).one()
     if not order_item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found in order")
 
-    if order_item.Status != 'Order Received':
+    if order_item.status != 'Order Received':
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only items with status 'Order Received' can be cancelled")
 
-    order_item.Status = 'Cancelled'
-    order.Subtotal -= order_item.Quantity * session.query(Menu_items).filter(Menu_items.Item_id == Item_id).one().Price
-    apply_voucher(order.VoucherApplied, order.UID, order.Order_id)
-    order.ServiceCharge = order.Subtotal * 0.06
-    order.ServiceTax = order.Subtotal * 0.06
-    order.NetTotal = order.Subtotal + order.ServiceCharge + order.ServiceTax
-    net_total_str = f"{order.NetTotal:.2f}"
+    order_item.status = 'Cancelled'
+    order.subtotal -= order_item.quantity * session.query(MenuItem).filter(MenuItem.item_id == Item_id).one().price
+    apply_voucher(order.voucher_applied, order.user_id, order.order_id)
+    order.service_charge = order.subtotal * 0.06
+    order.service_tax = order.subtotal * 0.06
+    order.net_total = order.subtotal + order.service_charge + order.service_tax
+    net_total_str = f"{order.net_total:.2f}"
     second_decimal = int(net_total_str[-1])
     if second_decimal in {1, 2, 3, 4}:
-        order.NetTotal = round(order.NetTotal, 1) + 0.05
+        order.net_total = round(order.net_total, 1) + 0.05
     elif second_decimal in {6, 7, 8, 9}:
-        order.NetTotal = round(order.NetTotal, 1) + 0.10
+        order.net_total = round(order.net_total, 1) + 0.10
 
-    order.NetTotal = round(order.NetTotal, 2)
-    order.RoundingAdjustment = order.NetTotal - (order.Subtotal + order.ServiceCharge + order.ServiceTax)
+    order.net_total = round(order.net_total, 2)
+    order.rounding_adjustment = order.net_total - (order.subtotal + order.service_charge + order.service_tax)
 
     session.commit()
 
     return {"message": "Item cancelled"}
 
 @app.patch('/orders/update-status', tags=['orders'])
-def update_order_status(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))],Order_id: int, Item_id: int,new_status: Literal['Order Received','In Progress','Served','Cancelled']):
-    order = session.query(Order).filter(Order.Order_id == Order_id).one()
+def update_order_status(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))],order_id: int, item_id: int,new_status: Literal['Order Received','In Progress','Served','Cancelled']):
+    order = session.query(Order).filter(Order.order_id == order_id).one()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
-    order_item = session.query(OrderItem).filter(OrderItem.Order_id == Order_id, OrderItem.Item_id == Item_id).one()
+    order_item = session.query(OrderItem).filter(OrderItem.order_id == order_id, OrderItem.item_id == item_id).one()
     if not order_item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found in order")
 
-    order_item.Status = new_status
+    order_item.status = new_status
     session.commit()
 
     return {"message": f"Order status updated to {new_status}"}
 
 @app.get('/orders/history', tags=['orders'])
 def get_order_history(user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))]):
-    orders = session.query(Order).filter(Order.UID == user.UID).order_by(Order.Time_Placed.desc()).all()
+    orders = session.query(Order).filter(Order.user_id == user.user_id).order_by(Order.time_placed.desc()).all()
     order_list = []
 
     for order in orders:
-        order_items = session.query(OrderItem).filter(OrderItem.Order_id == order.Order_id).all()
-        items = [{"item_name": item.Item_Name, "quantity": item.Quantity, "remarks" : item.Remarks,"status": item.Status} for item in order_items]
+        order_items = session.query(OrderItem).filter(OrderItem.order_id == order.order_id).all()
+        items = [{"item_name": item.item_name, "quantity": item.quantity, "remarks" : item.remarks,"status": item.status} for item in order_items]
 
         order_list.append({
-            "table_number": order.Table_number,
-            "order_id": order.Order_id,
+            "table_number": order.table_number,
+            "order_id": order.order_id,
             "order_items": items,
-            "time_placed": order.Time_Placed,
-            "voucher_applied": order.VoucherApplied,
-            "Subtotal": order.Subtotal,
-            "ServiceCharge": order.ServiceCharge,
-            "ServiceTax": order.ServiceTax,
-            "RoundingAdjustment": order.RoundingAdjustment,
-            "NetTotal": order.NetTotal,
-            "paying_method": order.PayingMethod
+            "time_placed": order.time_placed,
+            "voucher_applied": order.voucher_applied,
+            "subtotal": order.subtotal,
+            "service_charge": order.service_charge,
+            "service_tax": order.service_tax,
+            "rounding_adjustment": order.rounding_adjustment,
+            "net_total": order.net_total,
+            "paying_method": order.paying_method
         })
 
     return order_list
@@ -432,9 +432,9 @@ def get_order_history(user: Annotated[User, Depends(validate_role(roles=['custom
 def get_order_items_by_status(user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))], status: Optional[Literal['Order Received', 'In Progress', 'Served', 'Cancelled']] = None):
     query = session.query(OrderItem)
     if status:
-        query = query.filter(OrderItem.Status == status)
+        query = query.filter(OrderItem.status == status)
     order_items = query.all()
-    items = [{"item_name": item.Item_Name, "quantity": item.Quantity, "remarks": item.Remarks} for item in order_items]
+    items = [{"item_name": item.item_name, "quantity": item.quantity, "remarks": item.remarks} for item in order_items]
 
     return items
 

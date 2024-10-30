@@ -1,13 +1,13 @@
+from datetime import datetime, time
 from fastapi import FastAPI, status, Depends, HTTPException
 from typing import Annotated
-from sqlalchemy.orm import Session
-from root.database.database_models import *
+from root.database.database_models import MenuItem, Inventory, ItemIngredient, SessionKey, SessionLocal, session
 from root.account.account import sign_up, try_sign_up,login_for_session_key, logout, verify_login, create_account, create_account_details, get_UID_by_email
-from root.components.inventory_management import *
-from root.components.voucher import *
-from root.components.order_management import *
-from root.components.customer_feedback import *
-from root.components.machines import *
+from root.components.inventory_management import create_inventory, create_item, create_item_ingredient
+from root.components.voucher import create_voucher, voucher_base, voucher_requirement_base
+# from root.components.order_management import create_order, create_order_item
+# from root.components.customer_feedback import create_user_item_rating
+# from root.components.machines import create_machine, create_machine_ingredient
 from api import app
 
 # Dependency to provide database session
@@ -40,26 +40,26 @@ def test_signup_manager():
 def generate_test_data():
     # Sample inventory data
     inventory_data = [
-        inventory(Inventory_name='Flour', Quantity=50.0, Unit='kg'),
-        inventory(Inventory_name='Milk', Quantity=100.0, Unit='liters'),
-        inventory(Inventory_name='Eggs', Quantity=200.0, Unit='pcs'),
-        inventory(Inventory_name='Sugar', Quantity=70.0, Unit='kg'),
-        inventory(Inventory_name='Chicken', Quantity=150.0, Unit='kg'),
-        inventory(Inventory_name='Lettuce', Quantity=30.0, Unit='kg'),
-        inventory(Inventory_name='Tomato Sauce', Quantity=40.0, Unit='liters'),
-        inventory(Inventory_name='Rice', Quantity=120.0, Unit='kg'),
-        inventory(Inventory_name='Beef', Quantity=80.0, Unit='kg'),
-        inventory(Inventory_name='Cheese', Quantity=30.0, Unit='kg'),
-        inventory(Inventory_name='Butter', Quantity=25.0, Unit='kg'),
-        inventory(Inventory_name='Salt', Quantity=60.0, Unit='kg'),
-        inventory(Inventory_name='Pepper', Quantity=20.0, Unit='kg'),
-        inventory(Inventory_name='Olive Oil', Quantity=50.0, Unit='liters'),
-        inventory(Inventory_name='Garlic', Quantity=15.0, Unit='kg'),
-        inventory(Inventory_name='Onions', Quantity=40.0, Unit='kg'),
-        inventory(Inventory_name='Carrots', Quantity=35.0, Unit='kg'),
-        inventory(Inventory_name='Potatoes', Quantity=100.0, Unit='kg'),
-        inventory(Inventory_name='Bacon', Quantity=50.0, Unit='kg'),
-        inventory(Inventory_name='Mushrooms', Quantity=25.0, Unit='kg'),
+        Inventory(inventory_name='Flour', quantity=50.0, unit='kg'),
+        Inventory(inventory_name='Milk', quantity=100.0, unit='liters'),
+        Inventory(inventory_name='Eggs', quantity=200.0, unit='pcs'),
+        Inventory(inventory_name='Sugar', quantity=70.0, unit='kg'),
+        Inventory(inventory_name='Chicken', quantity=150.0, unit='kg'),
+        Inventory(inventory_name='Lettuce', quantity=30.0, unit='kg'),
+        Inventory(inventory_name='Tomato Sauce', quantity=40.0, unit='liters'),
+        Inventory(inventory_name='Rice', quantity=120.0, unit='kg'),
+        Inventory(inventory_name='Beef', quantity=80.0, unit='kg'),
+        Inventory(inventory_name='Cheese', quantity=30.0, unit='kg'),
+        Inventory(inventory_name='Butter', quantity=25.0, unit='kg'),
+        Inventory(inventory_name='Salt', quantity=60.0, unit='kg'),
+        Inventory(inventory_name='Pepper', quantity=20.0, unit='kg'),
+        Inventory(inventory_name='Olive Oil', quantity=50.0, unit='liters'),
+        Inventory(inventory_name='Garlic', quantity=15.0, unit='kg'),
+        Inventory(inventory_name='Onions', quantity=40.0, unit='kg'),
+        Inventory(inventory_name='Carrots', quantity=35.0, unit='kg'),
+        Inventory(inventory_name='Potatoes', quantity=100.0, unit='kg'),
+        Inventory(inventory_name='Bacon', quantity=50.0, unit='kg'),
+        Inventory(inventory_name='Mushrooms', quantity=25.0, unit='kg'),
     ]
 
 # Create inventory entries
@@ -68,16 +68,16 @@ def generate_test_data():
 
 # Sample menu items data
     menu_items_data = [
-        item(Item_name='Pancakes', Price=5.0, Picture_link='link_to_pancakes', Description='Fluffy pancakes.', Category='Brunch/Breakfast'),
-        item(Item_name='Spaghetti Carbonara', Price=12.0, Picture_link='link_to_spaghetti', Description='Classic Italian pasta.', Category='Italian'),
-        item(Item_name='Chicken Salad', Price=8.0, Picture_link='link_to_salad', Description='Healthy chicken salad.', Category='Main Courses'),
-        item(Item_name='Beef Burger', Price=10.0, Picture_link='link_to_burger', Description='Juicy beef burger.', Category='Main Courses'),
-        item(Item_name='Chocolate Cake', Price=4.5, Picture_link='link_to_cake', Description='Delicious chocolate cake.', Category='Dessert'),
-        item(Item_name='Garlic Bread', Price=3.0, Picture_link='link_to_garlic_bread', Description='Crispy garlic bread.', Category='Sides'),
-        item(Item_name='Caesar Salad', Price=7.0, Picture_link='link_to_caesar_salad', Description='Fresh Caesar salad.', Category='Sides'),
-        item(Item_name='Grilled Chicken', Price=15.0, Picture_link='link_to_grilled_chicken', Description='Grilled chicken with herbs.', Category='Main Courses'),
-        item(Item_name='Vegetable Stir Fry', Price=9.0, Picture_link='link_to_stir_fry', Description='Mixed vegetable stir fry.', Category='Vegan'),
-        item(Item_name='Fish and Chips', Price=11.0, Picture_link='link_to_fish_and_chips', Description='Classic fish and chips.', Category='Main Courses'),
+        MenuItem(item_name='Pancakes', price=5.0, picture_link='link_to_pancakes', description='Fluffy pancakes.', category='Brunch/Breakfast'),
+        MenuItem(item_name='Spaghetti Carbonara', price=12.0, picture_link='link_to_spaghetti', description='Classic Italian pasta.', category='Italian'),
+        MenuItem(item_name='Chicken Salad', price=8.0, picture_link='link_to_salad', description='Healthy chicken salad.', category='Main Courses'),
+        MenuItem(item_name='Beef Burger', price=10.0, picture_link='link_to_burger', description='Juicy beef burger.', category='Main Courses'),
+        MenuItem(item_name='Chocolate Cake', price=4.5, picture_link='link_to_cake', description='Delicious chocolate cake.', category='Dessert'),
+        MenuItem(item_name='Garlic Bread', price=3.0, picture_link='link_to_garlic_bread', description='Crispy garlic bread.', category='Sides'),
+        MenuItem(item_name='Caesar Salad', price=7.0, picture_link='link_to_caesar_salad', description='Fresh Caesar salad.', category='Sides'),
+        MenuItem(item_name='Grilled Chicken', price=15.0, picture_link='link_to_grilled_chicken', description='Grilled chicken with herbs.', category='Main Courses'),
+        MenuItem(item_name='Vegetable Stir Fry', price=9.0, picture_link='link_to_stir_fry', description='Mixed vegetable stir fry.', category='Vegan'),
+        MenuItem(item_name='Fish and Chips', price=11.0, picture_link='link_to_fish_and_chips', description='Classic fish and chips.', category='Main Courses'),
     ]
 
     # Create menu items
@@ -87,52 +87,52 @@ def generate_test_data():
     # Sample item ingredients data
     item_ingredients_data = [
         # Pancakes
-        item_ingredients(Item_id=1, Inventory_id=1, quantity=0.2),  # Flour
-        item_ingredients(Item_id=1, Inventory_id=3, quantity=2),    # Eggs
-        item_ingredients(Item_id=1, Inventory_id=2, quantity=0.5),  # Milk
+        ItemIngredient(item_id=1, inventory_id=1, quantity=0.2),  # Flour
+        ItemIngredient(item_id=1, inventory_id=3, quantity=2),    # Eggs
+        ItemIngredient(item_id=1, inventory_id=2, quantity=0.5),  # Milk
         # Spaghetti Carbonara
-        item_ingredients(Item_id=2, Inventory_id=9, quantity=0.3),  # Beef
-        item_ingredients(Item_id=2, Inventory_id=7, quantity=0.1),  # Tomato Sauce
-        item_ingredients(Item_id=2, Inventory_id=20, quantity=0.2), # Bacon
+        ItemIngredient(item_id=2, inventory_id=9, quantity=0.3),  # Beef
+        ItemIngredient(item_id=2, inventory_id=7, quantity=0.1),  # Tomato Sauce
+        ItemIngredient(item_id=2, inventory_id=20, quantity=0.2), # Bacon
         # Chicken Salad
-        item_ingredients(Item_id=3, Inventory_id=5, quantity=0.25), # Chicken
-        item_ingredients(Item_id=3, Inventory_id=6, quantity=0.1),  # Lettuce
-        item_ingredients(Item_id=3, Inventory_id=16, quantity=0.05),# Onions
+        ItemIngredient(item_id=3, inventory_id=5, quantity=0.25), # Chicken
+        ItemIngredient(item_id=3, inventory_id=6, quantity=0.1),  # Lettuce
+        ItemIngredient(item_id=3, inventory_id=16, quantity=0.05),# Onions
         # Beef Burger
-        item_ingredients(Item_id=4, Inventory_id=9, quantity=0.2),  # Beef
-        item_ingredients(Item_id=4, Inventory_id=10, quantity=0.05),# Cheese
-        item_ingredients(Item_id=4, Inventory_id=15, quantity=0.02),# Garlic
+        ItemIngredient(item_id=4, inventory_id=9, quantity=0.2),  # Beef
+        ItemIngredient(item_id=4, inventory_id=10, quantity=0.05),# Cheese
+        ItemIngredient(item_id=4, inventory_id=15, quantity=0.02),# Garlic
         # Chocolate Cake
-        item_ingredients(Item_id=5, Inventory_id=4, quantity=0.1),  # Sugar
-        item_ingredients(Item_id=5, Inventory_id=2, quantity=0.3),  # Milk
-        item_ingredients(Item_id=5, Inventory_id=3, quantity=2),    # Eggs
-        item_ingredients(Item_id=5, Inventory_id=11, quantity=0.1), # Butter
+        ItemIngredient(item_id=5, inventory_id=4, quantity=0.1),  # Sugar
+        ItemIngredient(item_id=5, inventory_id=2, quantity=0.3),  # Milk
+        ItemIngredient(item_id=5, inventory_id=3, quantity=2),    # Eggs
+        ItemIngredient(item_id=5, inventory_id=11, quantity=0.1), # Butter
         # Garlic Bread
-        item_ingredients(Item_id=6, Inventory_id=1, quantity=0.1),  # Flour
-        item_ingredients(Item_id=6, Inventory_id=15, quantity=0.05),# Garlic
-        item_ingredients(Item_id=6, Inventory_id=11, quantity=0.1), # Butter
+        ItemIngredient(item_id=6, inventory_id=1, quantity=0.1),  # Flour
+        ItemIngredient(item_id=6, inventory_id=15, quantity=0.05),# Garlic
+        ItemIngredient(item_id=6, inventory_id=11, quantity=0.1), # Butter
         # Caesar Salad
-        item_ingredients(Item_id=7, Inventory_id=6, quantity=0.2),  # Lettuce
-        item_ingredients(Item_id=7, Inventory_id=10, quantity=0.05),# Cheese
-        item_ingredients(Item_id=7, Inventory_id=16, quantity=0.05),# Onions
+        ItemIngredient(item_id=7, inventory_id=6, quantity=0.2),  # Lettuce
+        ItemIngredient(item_id=7, inventory_id=10, quantity=0.05),# Cheese
+        ItemIngredient(item_id=7, inventory_id=16, quantity=0.05),# Onions
         # Grilled Chicken
-        item_ingredients(Item_id=8, Inventory_id=5, quantity=0.3),  # Chicken
-        item_ingredients(Item_id=8, Inventory_id=14, quantity=0.05),# Olive Oil
-        item_ingredients(Item_id=8, Inventory_id=15, quantity=0.02),# Garlic
+        ItemIngredient(item_id=8, inventory_id=5, quantity=0.3),  # Chicken
+        ItemIngredient(item_id=8, inventory_id=14, quantity=0.05),# Olive Oil
+        ItemIngredient(item_id=8, inventory_id=15, quantity=0.02),# Garlic
         # Vegetable Stir Fry
-        item_ingredients(Item_id=9, Inventory_id=17, quantity=0.2), # Carrots
-        item_ingredients(Item_id=9, Inventory_id=18, quantity=0.2), # Potatoes
-        item_ingredients(Item_id=9, Inventory_id=19, quantity=0.1), # Mushrooms
-        item_ingredients(Item_id=9, Inventory_id=14, quantity=0.05),# Olive Oil
+        ItemIngredient(item_id=9, inventory_id=17, quantity=0.2), # Carrots
+        ItemIngredient(item_id=9, inventory_id=18, quantity=0.2), # Potatoes
+        ItemIngredient(item_id=9, inventory_id=19, quantity=0.1), # Mushrooms
+        ItemIngredient(item_id=9, inventory_id=14, quantity=0.05),# Olive Oil
         # Fish and Chips
-        item_ingredients(Item_id=10, Inventory_id=18, quantity=0.3),# Potatoes
-        item_ingredients(Item_id=10, Inventory_id=14, quantity=0.05),# Olive Oil
-        item_ingredients(Item_id=10, Inventory_id=12, quantity=0.02),# Salt
+        ItemIngredient(item_id=10, inventory_id=18, quantity=0.3),# Potatoes
+        ItemIngredient(item_id=10, inventory_id=14, quantity=0.05),# Olive Oil
+        ItemIngredient(item_id=10, inventory_id=12, quantity=0.02),# Salt
     ]
 
-        # Create item ingredients entries
+    # Create item ingredients entries
     for ing in item_ingredients_data:
-            create_item_ingredient(ing)
+        create_item_ingredient(ing)
 
 
 
@@ -201,7 +201,7 @@ def create_test_vouchers():
             )
             create_voucher(voucher, voucher_requirement)
 
-create_test_vouchers()
+# create_test_vouchers()
 # Call the function to populate the database with test data
 # generate_test_data()
 # test_signup_manager()
@@ -210,9 +210,9 @@ create_test_vouchers()
 
 def test_remove_sk():
    
-    sk_list = session.query(SessionKey).filter_by(UID=1).all()
+    sk_list = session.query(SessionKey).filter_by(user_id=1).all()
     for sk in sk_list:
         session.delete(sk)
     session.commit()
 
-test_remove_sk=()
+test_remove_sk()

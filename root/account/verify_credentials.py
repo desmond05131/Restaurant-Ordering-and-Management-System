@@ -1,7 +1,7 @@
 import re
 from sqlalchemy.orm.exc import NoResultFound
 from root.account.get_user_data_from_db import get_user_data_by_UID
-from root.database.database_models import session, Credentials,User
+from root.database.database_models import session, Credential,User
 from passlib.context import CryptContext
 from ..database.data_format import SignUpRequest, EditUserRequest,Key
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
@@ -37,26 +37,26 @@ def ValidPassword(Password: str):
 # Validate if user data is a dictionary and perform input checks
 def ValidUserData(data: SignUpRequest):
 
-    ValidUsername(data.Username)
-    ValidEmail(data.Email)
-    ValidPassword(data.Password)
+    ValidUsername(data.username)
+    ValidEmail(data.email)
+    ValidPassword(data.password)
 
 
 # Get UID from Email
-def get_UID_by_email(Email: str) -> int:
+def get_UID_by_email(email: str) -> int:
     try:
-        user = session.query(User).filter_by(Email=Email).one()
-        return user.UID
+        user = session.query(User).filter_by(email=email).one()
+        return user.user_id
     except NoResultFound:
         raise ValueError("User with this email doesn't exist.")
 
 
 # Set credentials in the database
-def set_credentials(Email: str, Password: str):
+def set_credentials(email: str, password: str):
     try:
-        Password_hash = bcrypt_context.hash(Password)
-        UID = get_UID_by_email(Email)
-        new_credentials = Credentials(UID=UID, Password_hash=Password_hash)
+        Password_hash = bcrypt_context.hash(password)
+        user_id = get_UID_by_email(email)
+        new_credentials = Credential(user_id=user_id, password_hash=Password_hash)
         session.add(new_credentials)
         session.commit()
         print("Credentials set successfully.")
@@ -66,12 +66,12 @@ def set_credentials(Email: str, Password: str):
 
 
 # Verify credentials and login
-def verify_login(Email: str, Password: str):
+def verify_login(email: str, password: str):
     try:
-        user_data = get_user_data_by_UID(get_UID_by_email(Email))
-        credentials = session.query(Credentials).filter_by(UID=user_data['UID']).one()
+        user_data = get_user_data_by_UID(get_UID_by_email(email))
+        credentials = session.query(Credential).filter_by(user_id=user_data['user_id']).one()
 
-        if bcrypt_context.verify(Password, credentials.Password_hash):
+        if bcrypt_context.verify(password, credentials.password_hash):
             print("Login successfully")
             return user_data
         else:

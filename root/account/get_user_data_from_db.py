@@ -3,54 +3,54 @@ from typing import List
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import Session
-from root.database.database_models import User, SessionKey, Credentials, Role, SessionLocal,session
+from root.database.database_models import User, SessionKey, Credential, Role, SessionLocal,session
 
 
 class UserData(BaseModel):
     UID: int
-    Username: str
-    Email: str
-    Role_id: int
-    Password_hash: str
-    Key: List[str] = Field(default_factory=list)
+    username: str
+    email: str
+    role_id: int
+    password_hash: str
+    key: List[str] = Field(default_factory=list)
     current_using_key: str = None
 
     def commit(self):
-        db_session_keys = [sk.Session_Key for sk in session.query(SessionKey).filter_by(UID=self.UID).all()]
+        db_session_keys = [sk.session_key for sk in session.query(SessionKey).filter_by(user_id=self.user_id).all()]
 
-        add_session_keys = [key for key in self.Key if key not in db_session_keys]
-        remove_session_keys = [key for key in db_session_keys if key not in self.Key]
+        add_session_keys = [key for key in self.key if key not in db_session_keys]
+        remove_session_keys = [key for key in db_session_keys if key not in self.key]
 
         for key in add_session_keys:
-            session.add(SessionKey(Session_Key=key, UID=self.UID))
+            session.add(SessionKey(session_key=key, user_id=self.user_id))
 
         for key in remove_session_keys:
-            session.query(SessionKey).filter_by(Session_Key=key, UID=self.UID).delete()
+            session.query(SessionKey).filter_by(session_key=key, user_id=self.user_id).delete()
 
-        user = session.query(User).filter_by(UID=self.UID).one()
-        user.Username = self.Username
-        user.Email = self.Email
-        user.Role_id = self.Role_id
-        user.Key = self.Key
+        user = session.query(User).filter_by(user_id=self.user_id).one()
+        user.username = self.username
+        user.email = self.email
+        user.role_id = self.role_id
+        user.key = self.key
         session.commit()
 
 
 # get user data by UID
 def get_user_data_by_UID(user_id: int) -> dict:
     try:
-        user = session.query(User).filter_by(UID=user_id).one()#session.execute(select(User.UID).where(User.UID==UID)).one()
-        credentials = session.query(Credentials).filter_by(UID=user_id).one() #session.execute(select(Credentials.UID).where(Credentials.UID==UID)).one()
-        session_keys = session.query(SessionKey).filter_by(UID=user_id).all() #session.execute(select(SessionKey.UID).where( SessionKey.UID==UID)).all()
+        user = session.query(User).filter_by(user_id=user_id).one()#session.execute(select(User.UID).where(User.UID==UID)).one()
+        credentials = session.query(Credential).filter_by(user_id=user_id).one() #session.execute(select(Credentials.UID).where(Credentials.UID==UID)).one()
+        session_keys = session.query(SessionKey).filter_by(user_id=user_id).all() #session.execute(select(SessionKey.UID).where( SessionKey.UID==UID)).all()
 
         print(user)
 
         user_data = {
-            "UID": user_id,
-            "Username": user.Username,
-            "Email": user.Email,
-            "Role_id": user.Role_id,
-            "Password_hash": credentials.Password_hash,
-            "Key": [sk.Session_Key for sk in session_keys]
+            "user_id": user_id,
+            "username": user.username,
+            "email": user.email,
+            "role_id": user.role_id,
+            "password_hash": credentials.password_hash,
+            "key": [sk.session_key for sk in session_keys]
         }
 
         print(user_data)
@@ -63,16 +63,16 @@ def get_user_data_by_UID(user_id: int) -> dict:
 # get role by UID
 def get_role(user_id: int) -> str:
     try:
-        user = session.query(User).filter_by(UID=user_id).one()
-        role = session.query(Role).filter_by(ID=user.Role_id).one()
-        return role.Role_Name
+        user = session.query(User).filter_by(user_id=user_id).one()
+        role = session.query(Role).filter_by(role_id=user.role_id).one()
+        return role.name
     except NoResultFound:
         return None
 
 
 class Users(UserData):
     def get_user_role(self):
-        return get_role(self.Role_id)
+        return get_role(self.role_id)
 
 
 # get user object

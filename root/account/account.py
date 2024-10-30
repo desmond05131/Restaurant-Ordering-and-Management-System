@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from jwt import encode as jwt_encode, decode as jwt_decode, ExpiredSignatureError
 from passlib.context import CryptContext
 
-from ..database.database_models import session, Role, User, Credentials, SessionKey
+from ..database.database_models import session, Role, User, Credential, SessionKey
 from ..database.data_format import *
 from .verify_credentials import get_UID_by_email, set_credentials, verify_login, ValidEmail, ValidPassword, ValidUserData, ValidUsername
 from .get_user_data_from_db import get_user_data_by_UID, get_role, get_user, UserData, Users
@@ -20,24 +20,24 @@ oauth2_bearer = OAuth2PasswordBearer(tokenUrl="/key")
 
 
 def sign_up(sign_up_request: SignUpRequest):
-    user = User(Username=sign_up_request.Username, Email=sign_up_request.Email, Role_id=1)
+    user = User(username=sign_up_request.username, email=sign_up_request.email, role_id=1)
     session.add(user)
     session.flush()  # To generate user.UID before it's used in Credentials
-    print(sign_up_request.Password)
-    credential = Credentials(UID=user.UID, Password_hash=bcrypt_context.hash(sign_up_request.Password))
+    print(sign_up_request.password)
+    credential = Credential(user_id=user.user_id, password_hash=bcrypt_context.hash(sign_up_request.password))
     session.add(credential)
     session.commit()
-    print(f"User {user.Username} created successfully.")
+    print(f"User {user.username} created successfully.")
 
 @app.post("/account/signup", status_code=status.HTTP_201_CREATED, tags=['account'])
 async def try_sign_up(sign_up_request: SignUpRequest):
     print(sign_up_request)
     try:
         ValidUserData(sign_up_request)
-        ValidUsername(sign_up_request.Username)
-        ValidEmail(sign_up_request.Email)
-        ValidPassword(sign_up_request.Password)
-        existing_user = session.query(User).filter_by(Email=sign_up_request.Email).one_or_none()
+        ValidUsername(sign_up_request.username)
+        ValidEmail(sign_up_request.email)
+        ValidPassword(sign_up_request.password)
+        existing_user = session.query(User).filter_by(email=sign_up_request.email).one_or_none()
         if existing_user:
             raise LookupError("Email already registered")
 
@@ -48,13 +48,13 @@ async def try_sign_up(sign_up_request: SignUpRequest):
             detail=str(err)
         )
 
-def create_session_key(Username: str, UID: int, expires_delta: timedelta):
-    encode = {'sub': Username, 'id': UID}
+def create_session_key(username: str, user_id: int, expires_delta: timedelta):
+    encode = {'sub': username, 'id': user_id}
     expires = datetime.now(timezone.utc) + expires_delta
     encode.update({'exp': expires})
     key = jwt_encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
-    session_key = SessionKey(UID=UID, Session_Key=key)
+    session_key = SessionKey(user_id=user_id, session_key=key)
     session.add(session_key)
     session.commit()
 
@@ -97,31 +97,31 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]) -> U
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user 2')
 
-        if key not in user.Key:
+        if key not in user.key:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user 3')
-        print("WHYYYYYYYYY", user.Key)
+        print("WHYYYYYYYYY", user.key)
 
         user.current_using_key = key
         return user
 
     except ExpiredSignatureError:
-        if user and key in user.Key:  # Check if `user` is assigned before accessing it
-            user.Key.remove(key)
+        if user and key in user.key:  # Check if `user` is assigned before accessing it
+            user.key.remove(key)
             session.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Session key expired')
 
 @app.delete(path='/account/expire_session_key', tags=['account'])
 async def logout(user: Annotated[Users, Depends(validate_session_key)]):
     try:
-        session_keys = session.query(SessionKey).filter_by(UID = user.UID).all()
+        session_keys = session.query(SessionKey).filter_by(user_id = user.user_id).all()
         current_using_key = user.current_using_key
        
 
         session_key_found = False
 
         for session_key in session_keys:
-            print(session_key.Session_Key)
-            if session_key.Session_Key == current_using_key:
+            print(session_key.session_key)
+            if session_key.session_key == current_using_key:
                 session_key_found = True
                 break
 
@@ -129,8 +129,8 @@ async def logout(user: Annotated[Users, Depends(validate_session_key)]):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user 4')
         
         session_keys = session.query(SessionKey).filter_by(
-            UID = user.UID, 
-            Session_Key = current_using_key
+            user_id = user.user_id, 
+            session_key = current_using_key
         ).delete(synchronize_session=False)
 
         session.commit()
@@ -145,7 +145,7 @@ class validate_role:
         self.roles = roles
 
     def __call__(self, user: Annotated[UserData, Depends(validate_session_key)]):
-        user_role = get_role(user.UID)#####
+        user_role = get_role(user.user_id)#####
 
         if user_role is None:
             raise HTTPException(
@@ -162,24 +162,24 @@ class validate_role:
         )
 
 class create_account_details(BaseModel):
-    Username: Annotated[str, AfterValidator(ValidUsername)]
-    Email: Annotated[str, AfterValidator(ValidEmail)]
-    Password: Annotated[str, AfterValidator(ValidPassword)]
-    Role_id: int
+    username: Annotated[str, AfterValidator(ValidUsername)]
+    email: Annotated[str, AfterValidator(ValidEmail)]
+    password: Annotated[str, AfterValidator(ValidPassword)]
+    role_id: int
 
 def create_account(account_details: create_account_details):
-    user = User(Username=account_details.Username, Email=account_details.Email, Role_id=account_details.Role_id)
+    user = User(username=account_details.username, email=account_details.email, role_id=account_details.role_id)
     session.add(user)
     session.flush()  # To generate user.UID before it's used in Credentials
-    print(account_details.Password)
-    credential = Credentials(UID=user.UID, Password_hash=bcrypt_context.hash(account_details.Password))
+    print(account_details.password)
+    credential = Credential(user_id=user.user_id, password_hash=bcrypt_context.hash(account_details.password))
     session.add(credential)
     session.commit()
-    print(f"User {user.Username} created successfully.")
+    print(f"User {user.username} created successfully.")
 
 def create_account_if_not_exist(account_details : create_account_details):
 
-    existing_user = session.query(User).filter_by(Email=account_details.Email).one_or_none()
+    existing_user = session.query(User).filter_by(email=account_details.email).one_or_none()
     if existing_user:
         raise LookupError("Email already registered")
     
@@ -191,17 +191,17 @@ async def manager_create_account(user : Annotated[User, Depends(validate_role(ro
 
 ##edit credentials
 @app.patch('/account/edit/credentials', tags = ['account'])
-def edit_credentials(user: Annotated[User, Depends(validate_role(roles=['manager']))], Email : str, new_password : str):
-    user_id = get_UID_by_email(Email)
+def edit_credentials(user: Annotated[User, Depends(validate_role(roles=['manager']))], email : str, new_password : str):
+    user_id = get_UID_by_email(email)
     if user_id is None:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail='user not found')
     try:
         new_password_hash= bcrypt_context.hash(new_password)
-        credentials = session.query(Credentials).filter_by(UID = user_id).one()
-        credentials.Password_hash = new_password_hash
+        credentials = session.query(Credential).filter_by(user_id = user_id).one()
+        credentials.password_hash = new_password_hash
         session.commit()
 
-        return {"message": f"Password updated seccefully for {Email}"}
+        return {"message": f"Password updated seccefully for {email}"}
 
     except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Credentials not found for the user')
@@ -211,19 +211,19 @@ def edit_credentials(user: Annotated[User, Depends(validate_role(roles=['manager
 
 ##edit user acccount detials
 @app.patch('/account/edit/user_data', tags = ['account'])
-def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['manager']))], Email : str, new_username : str, new_role_id: int ):
-    user_id = get_UID_by_email(Email)
+def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['manager']))], email : str, new_username : str, new_role_id: int ):
+    user_id = get_UID_by_email(email)
     if user_id is None:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail='user not found')
     try:
         new_Username= new_username
-        new_Role_id= new_role_id
-        user_data = session.query(User).filter_by(UID = user_id).one()
-        user_data.Username = new_Username
-        user_data.Role_id = new_Role_id
+        new_role_id= new_role_id
+        user_data = session.query(User).filter_by(user_id = user_id).one()
+        user_data.username = new_username
+        user_data.role_id = new_role_id
         session.commit()
 
-        return {"message": f"User_data updated seccefully for {Email}"}
+        return {"message": f"User_data updated seccefully for {email}"}
 
     except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User data not found for the user')
@@ -232,12 +232,12 @@ def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['manager']
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @app.patch('/account/edit/delete_user', tags = ['account'])
-def delete_account(user: Annotated[User, Depends(validate_role(roles=['manager']))], Email : str):
+def delete_account(user: Annotated[User, Depends(validate_role(roles=['manager']))], email : str):
     try:
-        user_to_delete = session.query(User).filter_by(Email=Email).one_or_none()
+        user_to_delete = session.query(User).filter_by(email=email).one_or_none()
         if user_to_delete is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        credentials_to_delete = session.query(Credentials).filter_by(UID=user_to_delete.UID).one_or_none()
+        credentials_to_delete = session.query(Credential).filter_by(user_id=user_to_delete.user_id).one_or_none()
 
         if credentials_to_delete is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Credentials not found for the given user")
@@ -246,7 +246,7 @@ def delete_account(user: Annotated[User, Depends(validate_role(roles=['manager']
         session.delete(user_to_delete)
         session.commit()
 
-        return {"message": f"User with email {Email} has been successfully deleted"}
+        return {"message": f"User with email {email} has been successfully deleted"}
 
     except HTTPException as err:
         raise err
@@ -271,7 +271,7 @@ async def view_accounts(role: Annotated[Literal['customer', 'cashier', 'chef', '
     if role:
         role_id = role_id_map.get(role)
         if role_id is not None:
-            query = query.filter_by(Role_id=role_id)
+            query = query.filter_by(role_id=role_id)
 
     accounts = query.all()
     
