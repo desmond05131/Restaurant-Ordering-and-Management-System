@@ -80,3 +80,5 @@ def resolve_issue(machine_id: str, user: Annotated[User, Depends(validate_role(r
 def get_all_machines(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
     machines = session.query(Machines).all()
     return machines
+
+

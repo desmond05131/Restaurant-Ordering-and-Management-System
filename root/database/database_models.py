@@ -235,6 +235,7 @@ class Machines(Base):
     machine_id = Column(Integer, primary_key=True, autoincrement=True)
     machine_name = Column(String, nullable=False)
     machine_type = Column(String, nullable=False)
+    Acquisition_date = Column(DateTime, default= datetime.now(timezone.utc))
     machine_status = Column(Enum('Available','Under maintenance'), default='Available')
     cost = Column(Float, nullable=False)
     maintenance_required = Column(Boolean, default=False)

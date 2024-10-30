@@ -12,7 +12,7 @@ from root.components.voucher import voucher_base, voucher_requirement_base, crea
 from root.account.get_user_data_from_db import get_role
 from root.components.inventory_management import item, inventory
 from root.account.account import validate_role
-from root.database.database_models import User, Inventory,BatchPackage,InventoryBatch, Order, OrderItem, session, Menu_items, Item_ingredients, CartItem, ShoppingCart, Voucher
+from root.database.database_models import User,Machines, Inventory,BatchPackage,InventoryBatch, Order, OrderItem, session, Menu_items, Item_ingredients, CartItem, ShoppingCart, Voucher
 from root.database.data_format import *
 from api import app
 
@@ -52,7 +52,7 @@ def generate_sales_report(year: int, month: Optional[int] = None, week: Optional
 
     return report
 
-def generate_cost_report(year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, float]:
+def generate_inventory_cost_report(year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, float]:
     query = session.query(
         func.sum(InventoryBatch.Cost).label('total_cost')
     ).filter(extract('year', InventoryBatch.Acquisition_date) == year)
@@ -81,9 +81,34 @@ def generate_cost_report(year: int, month: Optional[int] = None, week: Optional[
 
     return report
 
+def generate_machine_cost_report(year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, float]:
+    query = session.query(
+        func.sum(Machines.cost).label('total_cost')
+    ).filter(extract('year', Machines.Acquisition_date) == year)
 
+    if month is not None:
+        query = query.filter(extract('month', Machines.Acquisition_date) == month)
+    if week is not None:
+        query = query.filter(extract('week', Machines.Acquisition_date) == week)
+    if day is not None:
+        query = query.filter(extract('day', Machines.Acquisition_date) == day)
 
+    costs = query.all()
+    if not costs:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No cost data found for the given timeframe")
 
+    report_key = f"{year}"
+    if month is not None:
+        report_key += f"-{month:02d}"
+    if week is not None:
+        report_key += f"-W{week:02d}"
+    if day is not None:
+        report_key += f"-{day:02d}"
+
+    total_cost = costs[0][0]
+    report = {report_key: {"total_cost": total_cost}}
+
+    return report
 
 @app.patch('/orders/checkout', tags=['orders'])
 def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], table_number: int, paying_method: Literal['Cash', 'Credit Card', 'Debit Card', 'E-Wallet']):
@@ -191,19 +216,32 @@ def get_total_cost_report(user: Annotated[User, Depends(validate_role(roles=['ca
     if day is not None and (day < 1 or day > 31):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid day value. Day must be between 1 and 31")
 
-    report = generate_cost_report(year, month, week, day)
+    report = generate_inventory_cost_report(year, month, week, day)
+    return {"report": report}
+
+@app.get('/analytics/machine_cost', tags=['analytics'])
+def get_machine_cost_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
+    if month is not None and (month < 1 or month > 12):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid month value. Month must be between 1 and 12")
+    if week is not None and (week < 1 or week > 5):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid week value. Week must be between 1 and 5")
+    if day is not None and (day < 1 or day > 31):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid day value. Day must be between 1 and 31")
+
+    report = generate_machine_cost_report(year, month, week, day)
     return {"report": report}
 
 
 @app.get('/analytics/gross_profit', tags=['analytics'])
 def get_gross_profit_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
     sales_report = generate_sales_report(year, month, week, day)
-    cost_report = generate_cost_report(year, month, week, day)
+    inventory_cost_report = generate_inventory_cost_report(year, month, week, day)
+    machine_cost_report = generate_machine_cost_report(year, month, week, day)
 
     gross_profit_report = {}
     for key in sales_report.keys():
         gross_profit_report[key] = {
-            "gross_profit": sales_report[key]["total_net_total"] - cost_report[key]["total_cost"]
+            "gross_profit": sales_report[key]["total_net_total"] - inventory_cost_report[key]["total_cost"] - machine_cost_report[key]["total_cost"]
         }
 
     return {"report": gross_profit_report}

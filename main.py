@@ -4,6 +4,10 @@ from sqlalchemy.orm import Session
 from root.database.database_models import *
 from root.account.account import sign_up, try_sign_up,login_for_session_key, logout, verify_login, create_account, create_account_details, get_UID_by_email
 from root.components.inventory_management import *
+from root.components.voucher import *
+from root.components.order_management import *
+from root.components.customer_feedback import *
+from root.components.machines import *
 from api import app
 
 # Dependency to provide database session
@@ -130,19 +134,79 @@ def generate_test_data():
     for ing in item_ingredients_data:
             create_item_ingredient(ing)
 
+
+
+def create_test_vouchers():
+        vouchers = [
+            {
+                "voucher_code": "DISCOUNT10",
+                "voucher_type": "percentage discount",
+                "description": "10% off on all items",
+                "discount_value": 0.10,
+                "expiry_date": datetime(2024, 10, 30).date(),
+                "begin_date": datetime(2025, 1, 1).date(),
+                "required_points": 100,
+                "usage_limit": 100,
+                "applicable_item_id": None,
+                "requirement_time": time(0, 0),
+                "minimum_spend": 50,
+                "capped_amount": 20
+            },
+            {
+                "voucher_code": "FIXED5",
+                "voucher_type": "fixed amount discount",
+                "description": "$5 off on orders above $20",
+                "discount_value": 5,
+                "expiry_date": datetime(2024, 10, 30).date(),
+                "begin_date": datetime(2025, 1, 1).date(),
+                "required_points": 50,
+                "usage_limit": 50,
+                "applicable_item_id": None,
+                "requirement_time": time(0, 0),
+                "minimum_spend": 20,
+                "capped_amount": None
+            },
+            {
+                "voucher_code": "FREEITEM",
+                "voucher_type": "free item",
+                "description": "Get a free item with your order",
+                "discount_value": 0,
+                "expiry_date": datetime(2024, 10, 30).date(),
+                "begin_date": datetime(2025, 1, 1).date(),
+                "required_points": 200,
+                "usage_limit": 10,
+                "applicable_item_id": 1,  # Assuming item with ID 1 exists
+                "requirement_time": time(0, 0),
+                "minimum_spend": 0,
+                "capped_amount": None
+            }
+        ]
+
+        for voucher_data in vouchers:
+            voucher = voucher_base(
+                voucher_code=voucher_data["voucher_code"],
+                voucher_type=voucher_data["voucher_type"],
+                description=voucher_data["description"],
+                discount_value=voucher_data["discount_value"],
+                expiry_date=voucher_data["expiry_date"],
+                begin_date=voucher_data["begin_date"],
+                required_points=voucher_data["required_points"],
+                usage_limit=voucher_data["usage_limit"]
+            )
+            voucher_requirement = voucher_requirement_base(
+                applicable_item_id=voucher_data["applicable_item_id"],
+                requirement_time=voucher_data["requirement_time"],
+                minimum_spend=voucher_data["minimum_spend"],
+                capped_amount=voucher_data["capped_amount"]
+            )
+            create_voucher(voucher, voucher_requirement)
+
+create_test_vouchers()
 # Call the function to populate the database with test data
 # generate_test_data()
-
-
-# def test_login():
-#     login_for_session_key(get_UID_by_email('manager0001@mail.com'),'Manager0001@')
-
-# user = session.query(User).filter_by(Username = 'CharlieDowney').one()
-
 # test_signup_manager()
 # test_signup()
-##test_login()
-##get_item(1)
+
 
 def test_remove_sk():
    

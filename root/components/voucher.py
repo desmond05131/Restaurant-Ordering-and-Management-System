@@ -38,7 +38,7 @@ def create_voucher(voucher: voucher_base, voucher_requirement: voucher_requireme
     session.commit()
     return new_voucher
     
-
+   
 def claim_voucher(voucher_id: int, UID: int):
     voucher = session.query(Voucher).filter(Voucher.voucher_id == voucher_id).first()
     if voucher is None:
