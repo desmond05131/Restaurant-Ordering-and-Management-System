@@ -1,17 +1,19 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import Session
 from root.database.database_models import User, SessionKey, Credential, Role, SessionLocal,session
+from pydantic import ConfigDict
 
 
 class UserData(BaseModel):
-    UID: int
+    model_config = ConfigDict(from_attributes=True)
+    user_id: int
     username: str
     email: str
     role_id: int
-    password_hash: str
+    password_hash: Optional[str] = None
     key: List[str] = Field(default_factory=list)
     current_using_key: str = None
 

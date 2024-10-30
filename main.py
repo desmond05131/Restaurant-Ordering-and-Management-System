@@ -21,18 +21,18 @@ def get_db():
 ## test sign up users
 def test_signup():
     create_account(create_account_details(
-        Email= 'customer0001@mail.com',
-        Username= 'AlanBeth',
-        Password= 'Cus0001@',
-        Role_id= 1
+        email= 'customer0001@mail.com',
+        username= 'AlanBeth',
+        password= 'Cus0001@',
+        role_id= 1
     ))
 
 def test_signup_manager():
     create_account(create_account_details(
-        Email= 'manager0001@mail.com',
-        Username= 'CharlieDowney',
-        Password= 'Maneger0001@',
-        Role_id= 4
+        email= 'manager0001@mail.com',
+        username= 'CharlieDowney',
+        password= 'Maneger0001@',
+        role_id= 4
     ))
 
 
