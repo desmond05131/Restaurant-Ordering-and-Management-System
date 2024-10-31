@@ -31,7 +31,7 @@ def sign_up(sign_up_request: SignUpRequest):
     session.commit()
     print(f"User {user.username} created successfully.")
 
-@app.post("/account/signup", status_code=status.HTTP_201_CREATED, tags=['account'])
+@app.post("/account/signup", status_code=status.HTTP_201_CREATED, tags=['Account'])
 async def try_sign_up(sign_up_request: SignUpRequest):
     print(sign_up_request)
     try:
@@ -65,7 +65,7 @@ def create_session_key(username: str, user_id: int, expires_delta: timedelta):
     return key
 
 
-@app.post("/key", tags = ['account'])
+@app.post("/key", tags = ['Account'])
 async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Key:
     user = verify_login(form_data.username, form_data.password)
     if not user:
@@ -114,7 +114,7 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]) -> U
             session.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Session key expired')
 
-@app.delete(path='/account/expire_session_key', tags=['account'])
+@app.delete(path='/account/expire_session_key', tags=['Account'])
 async def logout(user: Annotated[Users, Depends(validate_session_key)]):
     try:
         session_keys = session.query(SessionKey).filter_by(user_id = user.user_id).all()
@@ -189,7 +189,7 @@ def create_account_if_not_exist(account_details : create_account_details):
     
     create_account(account_details)
 
-@app.post('/account/create/',tags = ['account'])
+@app.post('/account/create/',tags = ['Account'])
 async def manager_create_account(user : Annotated[User, Depends(validate_role(roles=['manager']))], account_details : create_account_details):
     try:
         create_account_if_not_exist(account_details)
@@ -199,7 +199,7 @@ async def manager_create_account(user : Annotated[User, Depends(validate_role(ro
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 ##edit credentials
-@app.patch('/account/edit/credentials', tags = ['account'])
+@app.patch('/account/edit/credentials', tags = ['Account'])
 def edit_credentials(user: Annotated[User, Depends(validate_role(roles=['manager']))], email : str, new_password : str):
     user_id = get_UID_by_email(email)
     if user_id is None:
@@ -219,7 +219,7 @@ def edit_credentials(user: Annotated[User, Depends(validate_role(roles=['manager
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 ##edit user acccount detials
-@app.patch('/account/edit/user_data', tags = ['account'])
+@app.patch('/account/edit/user_data', tags = ['Account'])
 def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['manager']))], email : str, new_username : str, new_role_id: int ):
     user_id = get_UID_by_email(email)
     if user_id is None:
@@ -240,7 +240,7 @@ def edit_user_data(user: Annotated[User, Depends(validate_role(roles=['manager']
         session.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@app.patch('/account/edit/delete_user', tags = ['account'])
+@app.patch('/account/edit/delete_user', tags = ['Account'])
 def delete_account(user: Annotated[User, Depends(validate_role(roles=['manager']))], email : str):
     try:
         user_to_delete = session.query(User).filter_by(email=email).one_or_none()
@@ -266,7 +266,7 @@ def delete_account(user: Annotated[User, Depends(validate_role(roles=['manager']
             detail=str(err)
         )
     
-@app.get('/account/view', tags = ['account'])
+@app.get('/account/view', tags = ['Account'])
 async def view_accounts(role: Annotated[Literal['customer', 'cashier', 'chef', 'manager'], None] = None):
     role_id_map = {
         'customer': 1,

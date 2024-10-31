@@ -124,7 +124,7 @@ def delete_all_order():
     session.commit()
 
 
-@app.get('/menu/view', tags=['menu'])
+@app.get('/menu/view', tags=['Menu'])
 async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef', 'cashier', 'customer']))], search_keyword: str = None) -> List[Get_item]:
 
     if get_role(user.user_id) in ['manager', 'chef']:
@@ -191,7 +191,7 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
 
         return items
 
-@app.patch('/cart/add-item', tags=['cart'])
+@app.patch('/cart/add-item', tags=['Cart'])
 def add_items_to_cart(item: add_item_to_cart,table_number: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -206,7 +206,7 @@ def add_items_to_cart(item: add_item_to_cart,table_number: int, user: Annotated[
     
     return {"message": f"Item {cart_item.item_name} added to cart"}
 
-@app.patch('/cart/remove-item', tags=['cart'])
+@app.patch('/cart/remove-item', tags=['Cart'])
 def remove_item_from_cart(item_id: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -224,7 +224,7 @@ def remove_item_from_cart(item_id: int, user: Annotated[User, Depends(validate_r
 
     return {"message": f"Item {cart_item.item_name} removed from cart"}
 
-@app.patch('/cart/update-item', tags=['cart'])
+@app.patch('/cart/update-item', tags=['Cart'])
 def update_item_in_cart(item: add_item_to_cart, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -245,7 +245,7 @@ def update_item_in_cart(item: add_item_to_cart, user: Annotated[User, Depends(va
 
     return {"message": f"Item {cart_item.item_name} updated in cart"}
 
-@app.patch('/cart/apply-voucher', tags=['cart'])
+@app.patch('/cart/apply-voucher', tags=['Cart'])
 def apply_voucher_to_cart(voucher_code: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -255,7 +255,7 @@ def apply_voucher_to_cart(voucher_code: int, user: Annotated[User, Depends(valid
     apply_voucher(voucher_code, user_id, cart.cart_id)
     return {"message": "Voucher applied successfully"}
 
-@app.patch('/cart/remove-voucher', tags=['cart'])
+@app.patch('/cart/remove-voucher', tags=['Cart'])
 def remove_voucher_from_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -269,7 +269,7 @@ def remove_voucher_from_cart(user: Annotated[User, Depends(validate_role(roles=[
 
     return {"message": "Voucher removed from cart"}
 
-@app.get('/cart/view', tags=['cart'])
+@app.get('/cart/view', tags=['Cart'])
 def view_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -296,7 +296,7 @@ def view_cart(user: Annotated[User, Depends(validate_role(roles=['customer','man
     }
 
 
-@app.patch('/cart/submit', tags=['cart'])
+@app.patch('/cart/submit', tags=['Cart'])
 def submit_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -324,7 +324,7 @@ def expire_old_carts():
         cart.status = 'Expired'
         session.commit()
 
-@app.get('/orders/view/{order_id}', response_model= order_created, tags=['orders'])
+@app.get('/orders/view/{order_id}', response_model= order_created, tags=['Orders'])
 def view_order_details(order_id: int, user: Annotated[User, Depends(validate_role(roles=['Manager', 'Chef']))]):
     order = session.query(Order).filter(
         Order.user_id == user.user_id, func.date(Order.time_placed) == datetime.now().date()).order_by(Order.time_placed.desc()).first()
@@ -353,7 +353,7 @@ def view_order_details(order_id: int, user: Annotated[User, Depends(validate_rol
         "paying_method": 'Not Paid Yet'
     }
 
-@app.patch('orders/cancel_item', tags=['orders'])
+@app.patch('orders/cancel_item', tags=['Orders'])
 def cancel_order_item(user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))], Item_id: int):
     order = session.query(Order).filter(
         Order.user_id == user.user_id, func.date(Order.time_placed) == datetime.now().date()).order_by(Order.time_placed.desc()).first()
@@ -387,7 +387,7 @@ def cancel_order_item(user: Annotated[User, Depends(validate_role(roles=['custom
 
     return {"message": "Item cancelled"}
 
-@app.patch('/orders/update-status', tags=['orders'])
+@app.patch('/orders/update-status', tags=['Orders'])
 def update_order_status(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))],order_id: int, item_id: int,new_status: Literal['Order Received','In Progress','Served','Cancelled']):
     order = session.query(Order).filter(Order.order_id == order_id).one()
     if not order:
@@ -402,7 +402,7 @@ def update_order_status(user: Annotated[User, Depends(validate_role(roles=['mana
 
     return {"message": f"Order status updated to {new_status}"}
 
-@app.get('/orders/history', tags=['orders'])
+@app.get('/orders/history', tags=['Orders'])
 def get_order_history(user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))]):
     orders = session.query(Order).filter(Order.user_id == user.user_id).order_by(Order.time_placed.desc()).all()
     order_list = []
@@ -428,7 +428,7 @@ def get_order_history(user: Annotated[User, Depends(validate_role(roles=['custom
     return order_list
 
 
-@app.get('/orders/view_order_items', tags=['orders'])
+@app.get('/orders/view_order_items', tags=['Orders'])
 def get_order_items_by_status(user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))], status: Optional[Literal['Order Received', 'In Progress', 'Served', 'Cancelled']] = None):
     query = session.query(OrderItem)
     if status:

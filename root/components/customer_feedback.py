@@ -20,7 +20,7 @@ def update_rating(item_id, rating):
     item.ratings = (item.ratings * number_of_ratings + rating) / (number_of_ratings + 1)
     session.commit()
 
-@app.post('/rating/rate-item', tags=['ratings'])
+@app.post('/rating/rate-item', tags=['Ratings'])
 def rate_order_item(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))], rating: int, description: str, item_id: int):
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
@@ -55,7 +55,7 @@ def rate_order_item(user: Annotated[User, Depends(validate_role(roles=['customer
 
     return {"message": f"Item {order_item.item_name} rated with {rating} stars"}
 
-@app.patch('/rating/update-rating', tags=['ratings'])
+@app.patch('/rating/update-rating', tags=['Ratings'])
 def update_order_item_rating(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))], rating: int, description: str, item_id: int):
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
@@ -88,7 +88,7 @@ def update_order_item_rating(user: Annotated[User, Depends(validate_role(roles=[
 
     return {"message": f"Item {order_item.item_name} rating updated to {rating} stars"}
 
-@app.post('/rating/overall', tags=['ratings'])
+@app.post('/rating/overall', tags=['Ratings'])
 def submit_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))], rating: int, description: str):
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
@@ -115,7 +115,7 @@ def submit_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['
 
     return {"message": "Overall feedback submitted"}
 
-@app.patch('/rating/update-overall', tags=['ratings'])
+@app.patch('/rating/update-overall', tags=['Ratings'])
 def update_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))], rating: int, description: str):
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
@@ -137,7 +137,7 @@ def update_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['
 
     return {"message": "Overall feedback updated"}
 
-@app.get('/rating/view', tags=['ratings'])
+@app.get('/rating/view', tags=['Ratings'])
 def view_item_ratings(user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))], item_id: Optional[int] = None):
     query = session.query(UserItemRating)
     
@@ -151,7 +151,7 @@ def view_item_ratings(user: Annotated[User, Depends(validate_role(roles=['custom
     
     return ratings
 
-@app.get('/rating/view-overall', tags=['ratings'])
+@app.get('/rating/view-overall', tags=['Ratings'])
 def view_overall_ratings(user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))]):
     query = session.query(UserOverallFeedback)
     ratings = query.all()

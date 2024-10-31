@@ -106,7 +106,7 @@ def generate_machine_cost_report(year: int, month: Optional[int] = None, week: O
 
     return report
 
-@app.patch('/orders/checkout', tags=['orders'])
+@app.patch('/orders/checkout', tags=['Orders'])
 def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], table_number: int, paying_method: Literal['Cash', 'Credit Card', 'Debit Card', 'E-Wallet']):
     order = session.query(Order).filter(Order.table_number == table_number).order_by(Order.time_placed.desc()).first()
     if not order:
@@ -191,7 +191,7 @@ def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier',
     return {"message": "Order checked out", "receipt": receipt_info, "receipt_files": ["./receipt.bin", "./receipt.zpl"]}
 
 
-@app.get('/analytics/total_sales', tags=['analytics'])
+@app.get('/analytics/total_sales', tags=['Analytics'])
 def get_sales_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))],year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
     if month is not None and (month < 1 or month > 12):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid month value. Month must be between 1 and 12")
@@ -203,7 +203,7 @@ def get_sales_report(user: Annotated[User, Depends(validate_role(roles=['cashier
     report = generate_sales_report(year, month, week, day)
     return {"report": report}
 
-@app.get('/analytics/total_cost', tags=['analytics'])
+@app.get('/analytics/total_cost', tags=['Analytics'])
 def get_total_cost_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
     if month is not None and (month < 1 or month > 12):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid month value. Month must be between 1 and 12")
@@ -215,7 +215,7 @@ def get_total_cost_report(user: Annotated[User, Depends(validate_role(roles=['ca
     report = generate_inventory_cost_report(year, month, week, day)
     return {"report": report}
 
-@app.get('/analytics/machine_cost', tags=['analytics'])
+@app.get('/analytics/machine_cost', tags=['Analytics'])
 def get_machine_cost_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
     if month is not None and (month < 1 or month > 12):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid month value. Month must be between 1 and 12")
@@ -228,7 +228,7 @@ def get_machine_cost_report(user: Annotated[User, Depends(validate_role(roles=['
     return {"report": report}
 
 
-@app.get('/analytics/gross_profit', tags=['analytics'])
+@app.get('/analytics/gross_profit', tags=['Analytics'])
 def get_gross_profit_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
     sales_report = generate_sales_report(year, month, week, day)
     inventory_cost_report = generate_inventory_cost_report(year, month, week, day)
@@ -243,7 +243,7 @@ def get_gross_profit_report(user: Annotated[User, Depends(validate_role(roles=['
     return {"report": gross_profit_report}
 
 
-@app.get('/analytics/popular_items', tags=['analytics'])
+@app.get('/analytics/popular_items', tags=['Analytics'])
 def generate_popular_items_report(sort_by: Literal['most_ordered', 'least_ordered', 'highest_ratings', 'lowest_ratings'], item_category: Optional[str] = None):
     query = session.query(
         MenuItem.item_name,

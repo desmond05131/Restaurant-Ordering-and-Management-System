@@ -101,7 +101,7 @@ def check_stock_levels(Inventory: Inventory):
     if Inventory.quantity <= 15:
         send_stock_alert_message_(Inventory.inventory_name,Inventory.quantity)
 
-@app.post('/inventory/add', tags=['inventory'])
+@app.post('/inventory/add', tags=['Inventory'])
 def add_inventory( new_inventory_info: inventory_update_request, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     existing_inventory = session.query(Inventory).filter_by(inventory_name=new_inventory_info.inventory_name).first()
     if existing_inventory:
@@ -116,7 +116,7 @@ def add_inventory( new_inventory_info: inventory_update_request, user: Annotated
         return {"message": f"Product '{new_inventory_info.inventory_name}' created with {new_inventory_info.quantity} {new_inventory_info.unit}"}
         
 
-@app.patch('/inventory/manage/details', tags=['inventory'])
+@app.patch('/inventory/manage/details', tags=['Inventory'])
 def manage_inventory_details( inventory_update: inventory, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     inventory = session.query(Inventory).filter_by(inventory_id=inventory_update.inventory_id).first()
     if not inventory:
@@ -128,7 +128,7 @@ def manage_inventory_details( inventory_update: inventory, user: Annotated[User,
     return {"message": f"Product '{inventory_update.inventory_name}' updated with unit: {inventory_update.unit}"}
 
 
-@app.delete('/inventory/remove', tags=['inventory'])
+@app.delete('/inventory/remove', tags=['Inventory'])
 def remove_inventory(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))],inventory_id: int, inventory_name: str):
     inventory = session.query(Inventory).filter_by(inventory_name=inventory_name, inventory_id= inventory_id).one()
 
@@ -140,7 +140,7 @@ def remove_inventory(user: Annotated[User, Depends(validate_role(roles=['manager
     return {"message": f"Inventory '{inventory_name}' removed successfully"}
 
 
-@app.post('/inventory/batch/add', tags=['inventory'])
+@app.post('/inventory/batch/add', tags=['Inventory'])
 def restock(batch: add_new_batch, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     existing_batch = session.query(InventoryBatch).filter_by(batch_id=batch.batch_id).first()
     if existing_batch:
@@ -156,7 +156,7 @@ def restock(batch: add_new_batch, user: Annotated[User, Depends(validate_role(ro
             ))
         return {"message": f"Batch '{new_batch.batch_id}' created successfully with {batch.no_of_package} packages"}
     
-@app.patch('/inventory/batch/manage', tags=['inventory'])
+@app.patch('/inventory/batch/manage', tags=['Inventory'])
 def manage_batch_details(batch: new_batch, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     batch_update = session.query(InventoryBatch).filter_by(batch_id=batch.batch_id).first()
     if not batch_update:
@@ -195,7 +195,7 @@ def manage_batch_details(batch: new_batch, user: Annotated[User, Depends(validat
     session.commit()
     return {"message": f"Batch '{batch.batch_id}' updated successfully"}
 
-@app.delete('/inventory/batch/remove', tags=['inventory'])
+@app.delete('/inventory/batch/remove', tags=['Inventory'])
 def remove_batch(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))], batch_id: int, inventory_id: int):
     batch = session.query(InventoryBatch).filter_by(batch_id=batch_id, inventory_id=inventory_id).one()
 
@@ -212,7 +212,7 @@ def remove_batch(user: Annotated[User, Depends(validate_role(roles=['manager','c
     
     return {"message": f"Batch '{batch_id}' removed successfully"}
 
-@app.post('/inventory/batch/package/add', tags=['inventory'])
+@app.post('/inventory/batch/package/add', tags=['Inventory'])
 def add_package(package: batch_package, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     existing_package = session.query(BatchPackage).filter_by(package_id=package.package_id).first()
     if existing_package:
@@ -227,7 +227,7 @@ def add_package(package: batch_package, user: Annotated[User, Depends(validate_r
         
         return {"message": f"Package '{new_package.package_id}' created successfully"}
     
-@app.patch('/inventory/batch/package/manage', tags=['inventory'])
+@app.patch('/inventory/batch/package/manage', tags=['Inventory'])
 def manage_package_details(package: batch_package, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     package_update = session.query(BatchPackage).filter_by(package_id=package.package_id).first()
     if not package_update:
@@ -248,7 +248,7 @@ def manage_package_details(package: batch_package, user: Annotated[User, Depends
     session.commit()
     return {"message": f"Package '{package.package_id}' updated successfully"}
 
-@app.delete('/inventory/batch/package/remove', tags=['inventory'])
+@app.delete('/inventory/batch/package/remove', tags=['Inventory'])
 def remove_package(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))], package_id: int, batch_id: int):
     package = session.query(BatchPackage).filter_by(package_id=package_id, batch_id=batch_id).one()
 
@@ -266,7 +266,7 @@ def remove_package(user: Annotated[User, Depends(validate_role(roles=['manager',
     return {"message": f"Package '{package_id}' removed successfully"}
 
 
-@app.post('/menu/items/add', tags=['menu'])
+@app.post('/menu/items/add', tags=['Menu'])
 def add_menu_item(item: new_item_with_ingredients, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str, str]:
     existing_item = session.query(MenuItem).filter_by(item_name=item.item_name).first()
     if existing_item:
@@ -298,7 +298,7 @@ def add_menu_item(item: new_item_with_ingredients, user: Annotated[User, Depends
         "message": f"Product '{item.item_name}' created in category: {item.category} with price:{item.price}; Ingredients added successfully"
     }
 
-@app.patch('/menu/items/manage_details', tags=['menu'])
+@app.patch('/menu/items/manage_details', tags=['Menu'])
 def manage_item_details(item_update: item, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     item = session.query(MenuItem).filter_by(item_id=item_update.item_id).first()
     if not item:
@@ -312,7 +312,7 @@ def manage_item_details(item_update: item, user: Annotated[User, Depends(validat
     session.commit()
     return {"message": f"Product '{item_update.item_id}' updated successfully"}
 
-@app.delete('/menu/items/remove', tags=['menu'])
+@app.delete('/menu/items/remove', tags=['Menu'])
 def remove_item(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))],item_name: str,item_id: int):
 
     delete_ingredient = session.query(ItemIngredient).filter_by(item_id=item_id).delete()
@@ -332,7 +332,7 @@ def remove_item(user: Annotated[User, Depends(validate_role(roles=['manager','ch
     return {"message": f"Item '{item_name}' and ingredients for '{item_name}' removed successfully"}
 
 
-@app.post('/ingredients/add', tags = ['ingredients'])
+@app.post('/ingredients/add', tags = ['Ingredients'])
 def add_ingredients( ingredient: item_ingredients, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     existing_ingredient = session.query(ItemIngredient).filter_by(item_id=ingredient.item_id, inventory_id = ingredient.inventory_id).first()
     if existing_ingredient:
@@ -343,7 +343,7 @@ def add_ingredients( ingredient: item_ingredients, user: Annotated[User, Depends
     session.commit()
     return {"message": f"Ingredient added successfully"}
 
-@app.patch('/ingredients/manage', tags=['ingredients'])
+@app.patch('/ingredients/manage', tags=['Ingredients'])
 def manage_ingredients(ingredient: item_ingredients, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     ingredient_update = session.query(ItemIngredient).filter_by(item_id=ingredient.item_id, inventory_id = ingredient.inventory_id).first()
     if not ingredient_update:
@@ -357,7 +357,7 @@ def manage_ingredients(ingredient: item_ingredients, user: Annotated[User, Depen
     return {"message": f"Ingredient '{ingredient_update.item_id}' updated successfully"}
 
 
-@app.delete('/ingredients/remove', tags = ['ingredients'])
+@app.delete('/ingredients/remove', tags = ['Ingredients'])
 def remove_ingredient (user: Annotated[User, Depends(validate_role(roles=['manager','chef']))],item_id: int, inventory_id : int):
     ingredient = session.query(ItemIngredient).filter_by(item_id=item_id,inventory_id = inventory_id ).one()
 
@@ -422,32 +422,32 @@ def check_inventory_levels() -> None:
     for inventory in inventories:
         check_stock_levels(inventory)
 
-@app.get('/inventory/view', tags=['inventory'])
+@app.get('/inventory/view', tags=['Inventory'])
 def view_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
     inventories = session.query(Inventory).all()
     return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in inventories]
 
-@app.get('/inventory/batch/view', tags=['inventory'])
+@app.get('/inventory/batch/view', tags=['Inventory'])
 def view_batch(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
     batches = session.query(InventoryBatch).all()
     return [{"Batch_id": batch.batch_id, "Inventory_id": batch.inventory_id, "No_of_Package": batch.no_of_package, "Quantity_per_package": batch.quantity_per_package, "Acquisition_date": batch.acquisition_date, "Expiration_date": batch.expiration_date, "Cost": batch.cost, "Cost_per_unit": batch.cost_per_unit} for batch in batches]
 
-@app.get('/inventory/batch/package/view', tags=['inventory'])
+@app.get('/inventory/batch/package/view', tags=['Inventory'])
 def view_package(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
     packages = session.query(BatchPackage).all()
     return [{"Package_id": package.package_id, "Batch_id": package.batch_id, "Inventory_id": package.inventory_id, "Status": package.status} for package in packages]
 
-@app.get('/menu/items/view', tags=['menu'])
+@app.get('/menu/items/view', tags=['Menu'])
 def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
     items = session.query(MenuItem).all()
     return [{"Item_id": item.item_id, "Item_name": item.item_name, "Price": item.price, "Picture_link": item.picture_link, "Description": item.description, "Category": item.category} for item in items]
 
-@app.get('/ingredients/view', tags=['ingredients'])
+@app.get('/ingredients/view', tags=['Ingredients'])
 def view_ingredients(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
     ingredients = session.query(ItemIngredient).all()
     return [{"Item_id": ingredient.item_id, "Inventory_id": ingredient.inventory_id, "quantity": ingredient.quantity} for ingredient in ingredients]
 
-@app.get('/inventory/view/low', tags=['inventory'])
+@app.get('/inventory/view/low', tags=['Inventory'])
 def view_low_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
     low_inventory = session.query(Inventory).filter(Inventory.quantity <= 15).all()
     return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in low_inventory]
