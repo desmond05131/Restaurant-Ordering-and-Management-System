@@ -23,13 +23,13 @@ class Key(BaseModel):
 
 
 class inventory(BaseModel):
-    inventory_id : Optional[int] = Field(None, alias='Inventory_id')
+    inventory_id : Optional[int] = Field(None, alias='inventory_id')
     inventory_name : str
-    quantity : Optional[float] = Field(None, alias='Quantity')
+    quantity : Optional[float] = Field(None, alias='quantity')
     unit: Optional[str]= None
 
 class new_batch(BaseModel):
-    batch_id: Optional[int] = Field(None, alias='Inventory_id')
+    batch_id: Optional[int] = Field(None, alias='inventory_id')
     inventory_id: int
     no_of_package: int
     quantity_per_package: float
@@ -39,13 +39,13 @@ class new_batch(BaseModel):
     cost_per_unit : float
 
 class batch_package(BaseModel):
-    package_id: Optional[int] = Field(None, alias='Package_id')
+    package_id: Optional[int] = Field(None, alias='package_id')
     batch_id: int
     inventory_id: int
     status: Literal['New','In use','Finished']
 
 class item(BaseModel):
-    item_id : Optional[int] = Field(None, alias='Item_id')
+    item_id : Optional[int] = Field(None, alias='item_id')
     item_name : str
     price :  float
     picture_link : str
@@ -63,7 +63,7 @@ class item_ingredients(BaseModel):
     quantity : float
 
 class add_new_batch(BaseModel):
-    batch_id: Optional[int] = Field(None, alias='Inventory_id')
+    batch_id: Optional[int] = Field(None, alias='inventory_id')
     inventory_id: int
     no_of_package: int
     quantity_per_package: float
@@ -73,7 +73,7 @@ class add_new_batch(BaseModel):
     cost_per_unit : float
 
 class batch_package(BaseModel):
-    package_id: Optional[int] = Field(None, alias='Package_id')
+    package_id: Optional[int] = Field(None, alias='package_id')
     batch_id: int
     inventory_id: int
     status: Literal['New','In use','Finished']
@@ -125,11 +125,11 @@ class UserVoucher(BaseModel):
 
 
 class shopping_cart(BaseModel):
-    cart_id: Optional[int] = Field(None, alias='Cart_id')
+    cart_id: Optional[int] = Field(None, alias='cart_id')
     user_id: int
     table_number: int
     creation_time: datetime
-    voucher_applied: Optional[int] = Field(None, alias='VoucherApplied')
+    voucher_applied: Optional[int] = Field(None, alias='voucher_applied')
     subtotal: float
     service_charge: float
     service_tax: float
@@ -154,11 +154,11 @@ class items_in_cart(BaseModel):
     items: List[add_item_to_cart]
 
 class order_created(BaseModel):
-    order_id: Optional[int] = Field(None, alias='Order_id')
+    order_id: Optional[int] = Field(None, alias='order_id')
     user_id: int
     table_number: int
     time_placed: datetime
-    voucher_applied: Optional[int] = Field(None, alias='VoucherApplied')
+    voucher_applied: Optional[int] = Field(None, alias='voucher_applied')
     subtotal: float
     service_charge: float
     service_tax: float
@@ -167,7 +167,7 @@ class order_created(BaseModel):
     paying_method: Optional[Literal['Not Paid Yet','Cash','Credit Card','Debit Card','E-Wallet']] = Field('Not Paid Yet', alias='PayingMethod')
 
 class order_item_details(BaseModel):
-    order_id: Optional[int] = Field(None, alias='Order_id')
+    order_id: Optional[int] = Field(None, alias='order_id')
     item_id: int
     item_name: str
     quantity: int
@@ -181,11 +181,11 @@ class items_ordered(BaseModel):
     orders: List[add_items_to_order]
 
 class Order(BaseModel):
-    order_id: Optional[int] = Field(None, alias='Order_id')
+    order_id: Optional[int] = Field(None, alias='order_id')
     user_id: int
     table_number: int
     time_placed: datetime
-    voucher_applied: Optional[int] = Field(None, alias='VoucherApplied')
+    voucher_applied: Optional[int] = Field(None, alias='voucher_applied')
     subtotal: float
     service_charge: float
     service_tax: float

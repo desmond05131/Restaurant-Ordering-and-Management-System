@@ -191,7 +191,7 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
 
         return items
 
-@app.patch('/cart/add-item', tags=['Cart'])
+@app.patch('/cart/add_item', tags=['Cart'])
 def add_items_to_cart(item: add_item_to_cart,table_number: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -206,7 +206,7 @@ def add_items_to_cart(item: add_item_to_cart,table_number: int, user: Annotated[
     
     return {"message": f"Item {cart_item.item_name} added to cart"}
 
-@app.patch('/cart/remove-item', tags=['Cart'])
+@app.patch('/cart/remove_item', tags=['Cart'])
 def remove_item_from_cart(item_id: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -224,7 +224,7 @@ def remove_item_from_cart(item_id: int, user: Annotated[User, Depends(validate_r
 
     return {"message": f"Item {cart_item.item_name} removed from cart"}
 
-@app.patch('/cart/update-item', tags=['Cart'])
+@app.patch('/cart/update_item', tags=['Cart'])
 def update_item_in_cart(item: add_item_to_cart, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -245,7 +245,7 @@ def update_item_in_cart(item: add_item_to_cart, user: Annotated[User, Depends(va
 
     return {"message": f"Item {cart_item.item_name} updated in cart"}
 
-@app.patch('/cart/apply-voucher', tags=['Cart'])
+@app.patch('/cart/apply_voucher', tags=['Cart'])
 def apply_voucher_to_cart(voucher_code: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -255,7 +255,7 @@ def apply_voucher_to_cart(voucher_code: int, user: Annotated[User, Depends(valid
     apply_voucher(voucher_code, user_id, cart.cart_id)
     return {"message": "Voucher applied successfully"}
 
-@app.patch('/cart/remove-voucher', tags=['Cart'])
+@app.patch('/cart/remove_voucher', tags=['Cart'])
 def remove_voucher_from_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
@@ -272,8 +272,11 @@ def remove_voucher_from_cart(user: Annotated[User, Depends(validate_role(roles=[
 @app.get('/cart/view', tags=['Cart'])
 def view_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
-    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
-    if not cart:
+    try:
+        cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
+        if not cart:
+            raise NoResultFound
+    except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
     cart_items = session.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
@@ -387,7 +390,7 @@ def cancel_order_item(user: Annotated[User, Depends(validate_role(roles=['custom
 
     return {"message": "Item cancelled"}
 
-@app.patch('/orders/update-status', tags=['Orders'])
+@app.patch('/orders/update_status', tags=['Orders'])
 def update_order_status(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))],order_id: int, item_id: int,new_status: Literal['Order Received','In Progress','Served','Cancelled']):
     order = session.query(Order).filter(Order.order_id == order_id).one()
     if not order:

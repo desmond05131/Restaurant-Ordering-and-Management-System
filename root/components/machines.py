@@ -14,7 +14,7 @@ from api import app
 
 
 
-@app.post('/machines/add-machine', tags=['Machines'])
+@app.post('/machines/add_machine', tags=['Machines'])
 def add_machine(machine_name: str,machine_type: str, cost:float, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
     new_machine = Machine(
         machine_name = machine_name,
@@ -28,7 +28,7 @@ def add_machine(machine_name: str,machine_type: str, cost:float, user: Annotated
     return new_machine
 
 
-@app.patch('/machines/edit-machine', tags=['Machines'])
+@app.patch('/machines/edit_machine', tags=['Machines'])
 def edit_machine(machine_id: str,machine_name: str,machine_type: str, cost:float, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
     machine_to_edit = session.query(Machine).filter(Machine.machine_id == machine_id).one_or_none()
     if not machine_to_edit:
@@ -40,7 +40,7 @@ def edit_machine(machine_id: str,machine_name: str,machine_type: str, cost:float
     print(f"Machine {machine_name} has been edited")
     return machine_to_edit
 
-@app.delete('/machines/delete-machine', tags=['Machines'])
+@app.delete('/machines/delete_machine', tags=['Machines'])
 def delete_machine(machine_id: str, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
     machine_to_delete = session.query(Machine).filter(Machine.machine_id == machine_id).one_or_none()
     if not machine_to_delete:
@@ -76,8 +76,8 @@ def resolve_issue(machine_id: str, user: Annotated[User, Depends(validate_role(r
     print(f"Machine {machine.machine_name} has been resolved")
     return machine
 
-@app.get('/machines/get-all-machines', tags=['Machines'])
-def get_all_machines(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
+@app.get('/machines/view', tags=['Machines'])
+def view_machines(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
     machines = session.query(Machine).all()
     return machines
 
