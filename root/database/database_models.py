@@ -24,10 +24,12 @@ class Role(Base):
 class User(Base):
     __tablename__ = 'UserData'
     user_id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String, nullable=False, unique=False)
-    email = Column(String, nullable=False, unique=True)
+    username = Column(String, nullable=True, unique=False)
+    email = Column(String, nullable=True, unique=True)
     role_id = Column(Integer, ForeignKey('Role.role_id'))
     points = Column(Integer, default=0)
+    is_guest = Column(Boolean, default=False)
+    created_at = Column(DateTime, default= datetime.now(timezone.utc))
     role = relationship('Role', back_populates='users')
     credentials = relationship('Credential', back_populates='user', uselist=False)
     session_keys = relationship('SessionKey', back_populates='user')
@@ -152,13 +154,14 @@ class CartItem(Base):
     
 
 class Order(Base):
-    __tablename__ = 'Orders'
+    __tablename__ = 'Order'
     order_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('UserData.user_id'), nullable=False)
-    table_id = Column(Integer, ForeignKey('TableNumber.table_id'), nullable=True)
+    table_id = Column(Integer, ForeignKey('TableNumber.table_id'), nullable=False)
+    cart_id = Column(Integer, ForeignKey('ShoppingCart.cart_id'), nullable=False)
     time_placed = Column(DateTime, default= datetime.now(timezone.utc))
     voucher_applied = Column(Integer, ForeignKey('Voucher.voucher_code'), nullable=True)
-    subtotal = Column(Float,ForeignKey('ShoppingCart.subtotal'), nullable=False)
+    subtotal = Column(Float, nullable=False)
     service_charge = Column(Float,nullable=False)
     service_tax = Column(Float,nullable=False)
     rounding_adjustment = Column(Float,nullable=False)
@@ -174,7 +177,7 @@ class Order(Base):
 class OrderItem(Base):
     __tablename__ = 'OrderItem'
     item_id = Column(Integer, ForeignKey('MenuItem.item_id'),primary_key=True)
-    order_id = Column(Integer, ForeignKey('Orders.order_id'), nullable=False)
+    order_id = Column(Integer, ForeignKey('Order.order_id'), nullable=False)
     item_name = Column(String, nullable=False)
     quantity = Column(Integer, nullable=False)
     remarks = Column(String, nullable=True)
@@ -215,7 +218,7 @@ class UserVoucher(Base):
 
 class UserItemRating(Base):
     __tablename__ = 'UserItemRating'
-    order_id = Column(Integer, ForeignKey('Orders.order_id'), primary_key=True)
+    order_id = Column(Integer, ForeignKey('Order.order_id'), primary_key=True)
     user_id = Column(Integer, ForeignKey('UserData.user_id'), primary_key=True)
     item_id = Column(Integer, ForeignKey('MenuItem.item_id'), primary_key=True)
     rating = Column(Integer, nullable=False)

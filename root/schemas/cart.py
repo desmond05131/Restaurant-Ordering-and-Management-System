@@ -6,15 +6,15 @@ class ShoppingCartInput(BaseModel):
     cart_id: Optional[int] = Field(None, alias='cart_id')
     user_id: int
     table_number: int
-    creation_time: datetime
+    creation_time: datetime = Field(default_factory=datetime.now)
     voucher_applied: Optional[int] = Field(None, alias='voucher_applied')
-    subtotal: float
-    service_charge: float
-    service_tax: float
-    rounding_adjustment: float
-    net_total: float
+    # subtotal: float
+    # service_charge: float
+    # service_tax: float
+    # rounding_adjustment: float
+    # net_total: float
     status: Literal['Active','Expired','Submitted']
-    last_update: datetime
+    last_update: datetime = Field(default_factory=datetime.now)
 
 class CartItemInput(BaseModel):
     item_id: int

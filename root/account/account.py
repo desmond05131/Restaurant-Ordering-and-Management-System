@@ -36,9 +36,6 @@ async def try_sign_up(sign_up_request: SignUpRequest):
     print(sign_up_request)
     try:
         ValidUserData(sign_up_request)
-        ValidUsername(sign_up_request.username)
-        ValidEmail(sign_up_request.email)
-        ValidPassword(sign_up_request.password)
         existing_user = session.query(User).filter_by(email=sign_up_request.email).one_or_none()
         if existing_user:
             raise LookupError("Email already registered")
@@ -103,7 +100,6 @@ async def validate_session_key(key: Annotated[str, Depends(oauth2_bearer)]) -> U
 
         if key not in user.key:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user 3')
-        print("WHYYYYYYYYY", user.key)
 
         user.current_using_key = key
         return user
@@ -165,13 +161,13 @@ class validate_role:
             detail='Insufficient permissions'
         )
 
-class create_account_details(BaseModel):
+class CreateAccountDetails(BaseModel):
     username: Annotated[str, AfterValidator(ValidUsername)]
     email: Annotated[str, AfterValidator(ValidEmail)]
     password: Annotated[str, AfterValidator(ValidPassword)]
     role_id: int
 
-def create_account(account_details: create_account_details):
+def create_account(account_details: CreateAccountDetails):
     user = User(username=account_details.username, email=account_details.email, role_id=account_details.role_id)
     session.add(user)
     session.flush()  # To generate user.UID before it's used in Credentials
@@ -181,7 +177,7 @@ def create_account(account_details: create_account_details):
     session.commit()
     print(f"User {user.username} created successfully.")
 
-def create_account_if_not_exist(account_details : create_account_details):
+def create_account_if_not_exist(account_details : CreateAccountDetails):
 
     existing_user = session.query(User).filter_by(email=account_details.email).one_or_none()
     if existing_user:
@@ -190,7 +186,7 @@ def create_account_if_not_exist(account_details : create_account_details):
     create_account(account_details)
 
 @app.post('/account/create/',tags = ['Account'])
-async def manager_create_account(user : Annotated[User, Depends(validate_role(roles=['manager']))], account_details : create_account_details):
+async def manager_create_account(user : Annotated[User, Depends(validate_role(roles=['manager']))], account_details : CreateAccountDetails):
     try:
         create_account_if_not_exist(account_details)
     except ValueError as e:
@@ -275,7 +271,7 @@ async def view_accounts(role: Annotated[Literal['customer', 'cashier', 'chef', '
         'manager': 4
     }
 
-    query = session.query(User)
+    query = session.query(User).filter_by(is_guest=False)
     
     if role:
         role_id = role_id_map.get(role)

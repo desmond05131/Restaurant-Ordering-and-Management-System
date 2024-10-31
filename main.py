@@ -1,8 +1,8 @@
 from datetime import datetime, time
 from fastapi import FastAPI, status, Depends, HTTPException
 from typing import Annotated
-from root.database.database_models import MenuItem, Inventory, ItemIngredient, SessionKey, SessionLocal, session
-from root.account.account import sign_up, try_sign_up,login_for_session_key, logout, verify_login, create_account, create_account_details, get_UID_by_email
+from root.database.database_models import MenuItem, Inventory, ItemIngredient, SessionKey, SessionLocal, TableNumber, session
+from root.account.account import sign_up, try_sign_up,login_for_session_key, logout, verify_login, create_account, CreateAccountDetails, get_UID_by_email
 from root.components.inventory_management import create_inventory, create_item, create_item_ingredient
 from root.components.voucher import create_voucher
 # from root.components.order_management import create_order, create_order_item
@@ -21,7 +21,7 @@ def get_db():
 
 ## test sign up users
 def test_signup():
-    create_account(create_account_details(
+    create_account(CreateAccountDetails(
         email= 'customer0001@mail.com',
         username= 'AlanBeth',
         password= 'Cus0001@',
@@ -29,13 +29,12 @@ def test_signup():
     ))
 
 def test_signup_manager():
-    create_account(create_account_details(
+    create_account(CreateAccountDetails(
         email= 'manager0001@mail.com',
         username= 'CharlieDowney',
         password= 'Maneger0001@',
         role_id= 4
     ))
-
 
 
 def generate_test_data():
@@ -63,11 +62,11 @@ def generate_test_data():
         Inventory(inventory_name='Mushrooms', quantity=25.0, unit='kg'),
     ]
 
-# Create inventory entries
+    # Create inventory entries
     for inv in inventory_data:
         create_inventory(inv)
 
-# Sample menu items data
+    # Sample menu items data
     menu_items_data = [
         MenuItem(item_name='Pancakes', price=5.0, picture_link='link_to_pancakes', description='Fluffy pancakes.', category='Brunch/Breakfast'),
         MenuItem(item_name='Spaghetti Carbonara', price=12.0, picture_link='link_to_spaghetti', description='Classic Italian pasta.', category='Italian'),
@@ -89,51 +88,66 @@ def generate_test_data():
     item_ingredients_data = [
         # Pancakes
         ItemIngredient(item_id=1, inventory_id=1, quantity=0.2),  # Flour
-        ItemIngredient(item_id=1, inventory_id=3, quantity=2),    # Eggs
+        ItemIngredient(item_id=1, inventory_id=3, quantity=2),  # Eggs
         ItemIngredient(item_id=1, inventory_id=2, quantity=0.5),  # Milk
         # Spaghetti Carbonara
         ItemIngredient(item_id=2, inventory_id=9, quantity=0.3),  # Beef
         ItemIngredient(item_id=2, inventory_id=7, quantity=0.1),  # Tomato Sauce
-        ItemIngredient(item_id=2, inventory_id=20, quantity=0.2), # Bacon
+        ItemIngredient(item_id=2, inventory_id=20, quantity=0.2),  # Bacon
         # Chicken Salad
-        ItemIngredient(item_id=3, inventory_id=5, quantity=0.25), # Chicken
+        ItemIngredient(item_id=3, inventory_id=5, quantity=0.25),  # Chicken
         ItemIngredient(item_id=3, inventory_id=6, quantity=0.1),  # Lettuce
-        ItemIngredient(item_id=3, inventory_id=16, quantity=0.05),# Onions
+        ItemIngredient(item_id=3, inventory_id=16, quantity=0.05),  # Onions
         # Beef Burger
         ItemIngredient(item_id=4, inventory_id=9, quantity=0.2),  # Beef
-        ItemIngredient(item_id=4, inventory_id=10, quantity=0.05),# Cheese
-        ItemIngredient(item_id=4, inventory_id=15, quantity=0.02),# Garlic
+        ItemIngredient(item_id=4, inventory_id=10, quantity=0.05),  # Cheese
+        ItemIngredient(item_id=4, inventory_id=15, quantity=0.02),  # Garlic
         # Chocolate Cake
         ItemIngredient(item_id=5, inventory_id=4, quantity=0.1),  # Sugar
         ItemIngredient(item_id=5, inventory_id=2, quantity=0.3),  # Milk
-        ItemIngredient(item_id=5, inventory_id=3, quantity=2),    # Eggs
-        ItemIngredient(item_id=5, inventory_id=11, quantity=0.1), # Butter
+        ItemIngredient(item_id=5, inventory_id=3, quantity=2),  # Eggs
+        ItemIngredient(item_id=5, inventory_id=11, quantity=0.1),  # Butter
         # Garlic Bread
         ItemIngredient(item_id=6, inventory_id=1, quantity=0.1),  # Flour
-        ItemIngredient(item_id=6, inventory_id=15, quantity=0.05),# Garlic
-        ItemIngredient(item_id=6, inventory_id=11, quantity=0.1), # Butter
+        ItemIngredient(item_id=6, inventory_id=15, quantity=0.05),  # Garlic
+        ItemIngredient(item_id=6, inventory_id=11, quantity=0.1),  # Butter
         # Caesar Salad
         ItemIngredient(item_id=7, inventory_id=6, quantity=0.2),  # Lettuce
-        ItemIngredient(item_id=7, inventory_id=10, quantity=0.05),# Cheese
-        ItemIngredient(item_id=7, inventory_id=16, quantity=0.05),# Onions
+        ItemIngredient(item_id=7, inventory_id=10, quantity=0.05),  # Cheese
+        ItemIngredient(item_id=7, inventory_id=16, quantity=0.05),  # Onions
         # Grilled Chicken
         ItemIngredient(item_id=8, inventory_id=5, quantity=0.3),  # Chicken
-        ItemIngredient(item_id=8, inventory_id=14, quantity=0.05),# Olive Oil
-        ItemIngredient(item_id=8, inventory_id=15, quantity=0.02),# Garlic
+        ItemIngredient(item_id=8, inventory_id=14, quantity=0.05),  # Olive Oil
+        ItemIngredient(item_id=8, inventory_id=15, quantity=0.02),  # Garlic
         # Vegetable Stir Fry
-        ItemIngredient(item_id=9, inventory_id=17, quantity=0.2), # Carrots
-        ItemIngredient(item_id=9, inventory_id=18, quantity=0.2), # Potatoes
-        ItemIngredient(item_id=9, inventory_id=19, quantity=0.1), # Mushrooms
-        ItemIngredient(item_id=9, inventory_id=14, quantity=0.05),# Olive Oil
+        ItemIngredient(item_id=9, inventory_id=17, quantity=0.2),  # Carrots
+        ItemIngredient(item_id=9, inventory_id=18, quantity=0.2),  # Potatoes
+        ItemIngredient(item_id=9, inventory_id=19, quantity=0.1),  # Mushrooms
+        ItemIngredient(item_id=9, inventory_id=14, quantity=0.05),  # Olive Oil
         # Fish and Chips
-        ItemIngredient(item_id=10, inventory_id=18, quantity=0.3),# Potatoes
-        ItemIngredient(item_id=10, inventory_id=14, quantity=0.05),# Olive Oil
-        ItemIngredient(item_id=10, inventory_id=12, quantity=0.02),# Salt
+        ItemIngredient(item_id=10, inventory_id=18, quantity=0.3),  # Potatoes
+        ItemIngredient(item_id=10, inventory_id=14, quantity=0.05),  # Olive Oil
+        ItemIngredient(item_id=10, inventory_id=12, quantity=0.02),  # Salt
     ]
 
     # Create item ingredients entries
     for ing in item_ingredients_data:
         create_item_ingredient(ing)
+
+    # Generate sample table
+    tables = [
+        TableNumber(status='Available'),
+        TableNumber(status='Available'),
+        TableNumber(status='Available'),
+        TableNumber(status='Available'),
+        TableNumber(status='Available'),
+        TableNumber(status='Available'),
+        TableNumber(status='Available'),
+        TableNumber(status='Available'),
+    ]
+
+    session.add_all(tables)
+    session.commit()
 
 
 
@@ -216,4 +230,4 @@ def test_remove_sk():
         session.delete(sk)
     session.commit()
 
-test_remove_sk()
+# test_remove_sk()

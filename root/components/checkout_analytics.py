@@ -43,7 +43,7 @@ def generate_sales_report(year: int, month: Optional[int] = None, week: Optional
         report_key += f"-{day:02d}"
 
     number_of_sales, total_net_total = sales[0]
-    report = {report_key: {"number_of_sales": number_of_sales, "total_net_total": total_net_total}}
+    report = {report_key: {"number_of_sales": number_of_sales if number_of_sales is not None else 0, "total_net_total": total_net_total if total_net_total is not None else 0}}
 
     return report
 
@@ -71,8 +71,8 @@ def generate_inventory_cost_report(year: int, month: Optional[int] = None, week:
     if day is not None:
         report_key += f"-{day:02d}"
 
-    total_cost = costs[0][0]
-    report = {report_key: {"total_cost": total_cost}}
+    total_cost = costs[0][0] 
+    report = {report_key: {"total_cost": total_cost if total_cost is not None else 0}}
 
     return report
 
@@ -101,7 +101,7 @@ def generate_machine_cost_report(year: int, month: Optional[int] = None, week: O
         report_key += f"-{day:02d}"
 
     total_cost = costs[0][0]
-    report = {report_key: {"total_cost": total_cost}}
+    report = {report_key: {"total_cost": total_cost if total_cost is not None else 0}}
 
     return report
 
@@ -191,7 +191,7 @@ def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier',
 
 
 @app.get('/analytics/total_sales', tags=['Analytics'])
-def get_sales_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))],year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
+def get_sales_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))],year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str,  Dict[str, float]]]:
     if month is not None and (month < 1 or month > 12):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid month value. Month must be between 1 and 12")
     if week is not None and (week < 1 or week > 5):
@@ -203,7 +203,7 @@ def get_sales_report(user: Annotated[User, Depends(validate_role(roles=['cashier
     return {"report": report}
 
 @app.get('/analytics/total_cost', tags=['Analytics'])
-def get_total_cost_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
+def get_total_cost_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str,  Dict[str, float]]]:
     if month is not None and (month < 1 or month > 12):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid month value. Month must be between 1 and 12")
     if week is not None and (week < 1 or week > 5):
@@ -215,7 +215,7 @@ def get_total_cost_report(user: Annotated[User, Depends(validate_role(roles=['ca
     return {"report": report}
 
 @app.get('/analytics/machine_cost', tags=['Analytics'])
-def get_machine_cost_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
+def get_machine_cost_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str,  Dict[str, float]]]:
     if month is not None and (month < 1 or month > 12):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid month value. Month must be between 1 and 12")
     if week is not None and (week < 1 or week > 5):
@@ -228,7 +228,7 @@ def get_machine_cost_report(user: Annotated[User, Depends(validate_role(roles=['
 
 
 @app.get('/analytics/gross_profit', tags=['Analytics'])
-def get_gross_profit_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, float]]:
+def get_gross_profit_report(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], year: int, month: Optional[int] = None, week: Optional[int] = None, day: Optional[int] = None) -> Dict[str, Dict[str, Dict[str, float]]]:
     sales_report = generate_sales_report(year, month, week, day)
     inventory_cost_report = generate_inventory_cost_report(year, month, week, day)
     machine_cost_report = generate_machine_cost_report(year, month, week, day)
@@ -247,7 +247,7 @@ def generate_popular_items_report(sort_by: Literal['most_ordered', 'least_ordere
     query = session.query(
         MenuItem.item_name,
         func.count(OrderItem.item_id).label('order_count'),
-        func(MenuItem.ratings).label('average_rating')
+        func.avg(MenuItem.ratings).label('average_rating')
     ).join(OrderItem, MenuItem.item_id == OrderItem.item_id)
 
     if item_category:

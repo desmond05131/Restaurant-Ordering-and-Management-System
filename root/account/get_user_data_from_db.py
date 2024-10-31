@@ -10,8 +10,8 @@ from pydantic import ConfigDict
 class UserData(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     user_id: int
-    username: str
-    email: str
+    username: Optional[str] = None
+    email: Optional[str] = None
     role_id: int
     password_hash: Optional[str] = None
     key: List[str] = Field(default_factory=list)

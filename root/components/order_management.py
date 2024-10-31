@@ -11,7 +11,7 @@ from root.database.database_models import User, Inventory, Order, OrderItem, ses
 from api import app
 from root.schemas.cart import AddItemToCart, CartItemInput, ItemsInCart, ShoppingCartInput
 from root.schemas.item import GetItem
-from root.schemas.order import OrderCreated
+from root.schemas.order import AddItemsToOrder, OrderCreated
 from sqlalchemy.orm.exc import NoResultFound
 
 
@@ -25,7 +25,11 @@ def create_cart(cart_info: ShoppingCartInput):
         table_id = cart_info.table_number,
         creation_time = datetime.now(),
         voucher_applied = 0,
-        total_amount = 0.0,
+        subtotal = 0.0,
+        service_charge = 0.0,
+        service_tax = 0.0,
+        rounding_adjustment = 0.0,
+        net_total = 0.0,
         status = 'Active',
         last_update = datetime.now()
     )
@@ -35,7 +39,7 @@ def create_cart(cart_info: ShoppingCartInput):
     session.flush(new_cart)
     return new_cart
 
-def cart_add_item(item: CartItemInput):
+def cart_add_item(item: CartItem):
     cart_item = CartItem(
         item_id = item.item_id,
         cart_id = item.cart_id,
@@ -82,10 +86,11 @@ def calculate_net_total(cart_id: int):
     return cart.net_total
 
 
-def SubmitOrder(order_info: OrderCreated, items: ItemsInCart):
+def SubmitOrder(order_info: OrderCreated, items: List[CartItem]):
     new_order = Order(
         user_id = order_info.user_id,
-        table_number = order_info.table_number,
+        table_id = order_info.table_id,
+        cart_id = order_info.cart_id,
         time_placed = datetime.now(),
         voucher_applied = order_info.voucher_applied,
         subtotal = order_info.subtotal,
@@ -100,7 +105,7 @@ def SubmitOrder(order_info: OrderCreated, items: ItemsInCart):
     session.commit()
     session.flush(new_order)
 
-    for item in items.items:
+    for item in items:
         order_item = OrderItem(
             order_id = new_order.order_id,
             item_id = item.item_id,
@@ -195,13 +200,28 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
 @app.patch('/cart/add_item', tags=['Cart'])
 def add_items_to_cart(item: AddItemToCart,table_number: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
-    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
-    if not cart:
-        create_cart(ShoppingCartInput(user_id=user_id, table_number=table_number, status='Active'))
+    try:
+        cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
+        if not cart:
+            raise NoResultFound
+    except NoResultFound:
+        cart = create_cart(ShoppingCartInput(user_id=user_id, table_number=table_number, status='Active'))
 
-    item_price = session.query(MenuItem).filter(MenuItem.item_id == item.item_id).one().price
-    cart_item = cart_add_item(cart_item(**item.model_dump(), cart_id=cart.cart_id, price=item_price))
+    try:
+        menu_item = session.query(MenuItem).filter(MenuItem.item_id == item.item_id).one()
+    except NoResultFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
     
+    if any(cart_item.item_id == item.item_id for cart_item in cart.cart_items):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Item {menu_item.item_name} already in cart")
+    
+    item_data = item.model_dump()
+    item_data.update({
+        'cart_id': cart.cart_id,
+        'price': menu_item.price,
+        'item_name': menu_item.item_name
+    })
+    cart_item = cart_add_item(CartItem(**item_data))
 
     session.commit()
     
@@ -210,15 +230,19 @@ def add_items_to_cart(item: AddItemToCart,table_number: int, user: Annotated[Use
 @app.patch('/cart/remove_item', tags=['Cart'])
 def remove_item_from_cart(item_id: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
-    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
-    if not cart:
+    try:
+        cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
+        if not cart:
+            raise NoResultFound
+    except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
-
-    cart_item = session.query(CartItem).filter(CartItem.item_id == item_id).filter(CartItem.cart_id == cart.cart_id).one()
-    if not cart_item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found in cart")
     
-    item_price = session.query(MenuItem).filter(MenuItem.item_id == item_id).one().price
+    try:
+        cart_item = session.query(CartItem).filter(CartItem.item_id == item_id).filter(CartItem.cart_id == cart.cart_id).one()
+        if not cart_item:
+            raise NoResultFound
+    except NoResultFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found in cart")
 
     session.delete(cart_item)
     session.commit()
@@ -228,12 +252,18 @@ def remove_item_from_cart(item_id: int, user: Annotated[User, Depends(validate_r
 @app.patch('/cart/update_item', tags=['Cart'])
 def update_item_in_cart(item: AddItemToCart, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
-    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
-    if not cart:
+    try:
+        cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
+        if not cart:
+            raise NoResultFound
+    except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
-    cart_item = session.query(CartItem).filter(CartItem.item_id == item.item_id).filter(CartItem.cart_id == cart.cart_id).one()
-    if not cart_item:
+    try:
+        cart_item = session.query(CartItem).filter(CartItem.item_id == item.item_id).filter(CartItem.cart_id == cart.cart_id).one()
+        if not cart_item:
+            raise NoResultFound
+    except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found in cart")
 
     cart_item.quantity = item.quantity
@@ -241,16 +271,19 @@ def update_item_in_cart(item: AddItemToCart, user: Annotated[User, Depends(valid
 
     if cart_item.quantity == 0:
         session.delete(cart_item)
-        
-    session.commit()
 
+    session.commit()
+    
     return {"message": f"Item {cart_item.item_name} updated in cart"}
 
 @app.patch('/cart/apply_voucher', tags=['Cart'])
 def apply_voucher_to_cart(voucher_code: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
-    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
-    if not cart:
+    try:
+        cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
+        if not cart:
+            raise NoResultFound
+    except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
     apply_voucher(voucher_code, user_id, cart.cart_id)
@@ -259,8 +292,11 @@ def apply_voucher_to_cart(voucher_code: int, user: Annotated[User, Depends(valid
 @app.patch('/cart/remove_voucher', tags=['Cart'])
 def remove_voucher_from_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
-    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
-    if not cart:
+    try:
+        cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
+        if not cart:
+            raise NoResultFound
+    except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
     cart.voucher_applied = None
@@ -303,15 +339,27 @@ def view_cart(user: Annotated[User, Depends(validate_role(roles=['customer','man
 @app.patch('/cart/submit', tags=['Cart'])
 def submit_cart(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
-    cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
-    if not cart:
+    try:
+        cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
+        if not cart:
+            raise NoResultFound
+    except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
     cart_items = session.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
-    if not cart_items:
+    if len(cart_items) == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart is empty")
 
-    order = SubmitOrder(OrderCreated(user_id=user_id, table_number=cart.table_number, subtotal=cart.subtotal, service_charge=cart.service_charge, service_tax=cart.service_tax, rounding_adjustment=cart.rounding_adjustment, net_total=cart.net_total), ItemsInCart(items=[AddItemsToOrder(**item.model_dump()) for item in cart_items]))
+    SubmitOrder(OrderCreated(user_id=user_id, 
+                             table_id=cart.table_number.table_id, 
+                             cart_id=cart.cart_id,
+                             subtotal=cart.subtotal, 
+                             service_charge=cart.service_charge,
+                             service_tax=cart.service_tax, 
+                             rounding_adjustment=cart.rounding_adjustment, 
+                             time_placed=datetime.now(),
+                             net_total=cart.net_total), 
+                        cart_items)
     cart.status = 'Submitted'
     session.commit()
 

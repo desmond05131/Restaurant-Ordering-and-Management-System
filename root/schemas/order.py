@@ -5,7 +5,8 @@ from datetime import datetime
 class OrderCreated(BaseModel):
     order_id: Optional[int] = Field(None, alias='order_id')
     user_id: int
-    table_number: int
+    table_id: int
+    cart_id: int
     time_placed: datetime
     voucher_applied: Optional[int] = Field(None, alias='voucher_applied')
     subtotal: float
