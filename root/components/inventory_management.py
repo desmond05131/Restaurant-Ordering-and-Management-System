@@ -1,20 +1,17 @@
-from pydantic import BaseModel, AfterValidator, Field
-from datetime import datetime, date
+from datetime import date
 from fastapi import Depends, HTTPException, status
-from typing import Annotated, List, Dict,Literal
-from sqlalchemy import and_,extract, func
-from sqlalchemy.orm.exc import NoResultFound
+from typing import Annotated, List, Dict
 from fastapi_utils.tasks import repeat_every
 
 from root.account.account import validate_role
-from root.database.data_format import *
 from root.database.database_models import session,User, Inventory, MenuItem, ItemIngredient, InventoryBatch, BatchPackage
-from typing import Optional
 from api import app
+from root.schemas.item import ItemInput, ItemIngredientsInput, NewItemWithIngredients
+from root.schemas.inventory import BatchPackageCreate, InventoryInput, NewBatch, InventoryUpdateRequest
 
 
 
-def create_inventory(ingredient: Inventory):
+def create_inventory(ingredient: InventoryInput):
     db_inventory = Inventory(
         inventory_name= ingredient.inventory_name,
         quantity=ingredient.quantity,
@@ -26,7 +23,7 @@ def create_inventory(ingredient: Inventory):
     print(f"Inventory {db_inventory.inventory_name} created successfully.")
     return db_inventory
 
-def create_item(item: item):
+def create_item(item: ItemInput):
     new_item = MenuItem(
         item_name=item.item_name,
         price=item.price,
@@ -41,7 +38,7 @@ def create_item(item: item):
     print(f"Item {new_item.item_name} created successfully.")
     return new_item
 
-def create_item_ingredient(item_ingredient: item_ingredients):
+def create_item_ingredient(item_ingredient: ItemIngredientsInput):
         db_ingredient = ItemIngredient(
         item_id = item_ingredient.item_id, 
         inventory_id = item_ingredient.inventory_id,
@@ -54,7 +51,7 @@ def create_item_ingredient(item_ingredient: item_ingredients):
         print(f"Ingredients {db_ingredient.item_id} created successfully.")
         return db_ingredient
 
-def create_batch(batch: new_batch):
+def create_batch(batch: NewBatch):
     db_batch = InventoryBatch(
         batch_id = batch.batch_id,
         inventory_id = batch.inventory_id,
@@ -71,7 +68,7 @@ def create_batch(batch: new_batch):
     print(f"Batch {db_batch.batch_id} created successfully.")
     return db_batch
     
-def create_package(package: batch_package):
+def create_package(package: BatchPackageCreate):
     db_package = BatchPackage(
         batch_id = package.batch_id,
         inventory_id = package.inventory_id,
@@ -93,22 +90,22 @@ def update_quantity(inventory_id: int, no_of_package: int, quantity_per_package:
     print(f"Inventory {inventory.inventory_name} updated successfully with new quantity: {inventory.quantity}")
     return inventory
 
-def send_stock_alert_message_(inventory_name: str, remain_quantity: int, unit: str):
+def send_stock_alert_message(inventory_name: str, remain_quantity: int, unit: str):
     message = f"Alert: Only{remain_quantity} {unit} of {inventory_name} is left"
     print(message)
 
-def check_stock_levels(Inventory: Inventory):
-    if Inventory.quantity <= 15:
-        send_stock_alert_message_(Inventory.inventory_name,Inventory.quantity)
+def check_stock_levels(inventory: Inventory):
+    if inventory.quantity <= 15:
+        send_stock_alert_message(inventory.inventory_name,inventory.quantity)
 
 @app.post('/inventory/add', tags=['Inventory'])
-def add_inventory( new_inventory_info: inventory_update_request, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def add_inventory( new_inventory_info: InventoryUpdateRequest, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     existing_inventory = session.query(Inventory).filter_by(inventory_name=new_inventory_info.inventory_name).first()
     if existing_inventory:
         raise HTTPException(status_code=status.HTTP_201_CREATED,detail= "Inventory already exist")
     
     else:
-        new_inventory = create_inventory(Inventory(
+        create_inventory(InventoryInput(
             inventory_name=new_inventory_info.inventory_name,
             quantity=new_inventory_info.quantity,
             unit=new_inventory_info.unit
@@ -117,7 +114,7 @@ def add_inventory( new_inventory_info: inventory_update_request, user: Annotated
         
 
 @app.patch('/inventory/manage/details', tags=['Inventory'])
-def manage_inventory_details( inventory_update: inventory, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def manage_inventory_details( inventory_update: InventoryInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     inventory = session.query(Inventory).filter_by(inventory_id=inventory_update.inventory_id).first()
     if not inventory:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail= "Inventory not found")
@@ -141,7 +138,7 @@ def remove_inventory(user: Annotated[User, Depends(validate_role(roles=['manager
 
 
 @app.post('/inventory/batch/add', tags=['Inventory'])
-def restock(batch: add_new_batch, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def restock(batch: NewBatch, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     existing_batch = session.query(InventoryBatch).filter_by(batch_id=batch.batch_id).first()
     if existing_batch:
         raise HTTPException(status_code=status.HTTP_201_CREATED,detail= "Batch already exist")
@@ -149,7 +146,7 @@ def restock(batch: add_new_batch, user: Annotated[User, Depends(validate_role(ro
         new_batch = create_batch(batch)
         update_quantity(batch.inventory_id, batch.no_of_package, batch.quantity_per_package)
         for _ in range(batch.no_of_package):
-            create_package(batch_package(
+            create_package(BatchPackageCreate(
                 batch_id=new_batch.batch_id,
                 inventory_id=new_batch.inventory_id,
                 status='New'
@@ -157,7 +154,7 @@ def restock(batch: add_new_batch, user: Annotated[User, Depends(validate_role(ro
         return {"message": f"Batch '{new_batch.batch_id}' created successfully with {batch.no_of_package} packages"}
     
 @app.patch('/inventory/batch/manage', tags=['Inventory'])
-def manage_batch_details(batch: new_batch, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def manage_batch_details(batch: NewBatch, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     batch_update = session.query(InventoryBatch).filter_by(batch_id=batch.batch_id).first()
     if not batch_update:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail= "Batch not found")
@@ -182,7 +179,7 @@ def manage_batch_details(batch: new_batch, user: Annotated[User, Depends(validat
 
     if initial_no_of_package < batch.no_of_package:
         for _ in range(batch.no_of_package - initial_no_of_package):
-            create_package(batch_package(
+            create_package(BatchPackageCreate(
                 batch_id=batch.batch_id,
                 inventory_id=batch.inventory_id,
                 status='New'
@@ -213,7 +210,7 @@ def remove_batch(user: Annotated[User, Depends(validate_role(roles=['manager','c
     return {"message": f"Batch '{batch_id}' removed successfully"}
 
 @app.post('/inventory/batch/package/add', tags=['Inventory'])
-def add_package(package: batch_package, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def add_package(package: BatchPackageCreate, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     existing_package = session.query(BatchPackage).filter_by(package_id=package.package_id).first()
     if existing_package:
         raise HTTPException(status_code=status.HTTP_201_CREATED, detail="Package already exists")
@@ -228,7 +225,7 @@ def add_package(package: batch_package, user: Annotated[User, Depends(validate_r
         return {"message": f"Package '{new_package.package_id}' created successfully"}
     
 @app.patch('/inventory/batch/package/manage', tags=['Inventory'])
-def manage_package_details(package: batch_package, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def manage_package_details(package: BatchPackageCreate, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     package_update = session.query(BatchPackage).filter_by(package_id=package.package_id).first()
     if not package_update:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Package not found")
@@ -267,7 +264,7 @@ def remove_package(user: Annotated[User, Depends(validate_role(roles=['manager',
 
 
 @app.post('/menu/items/add', tags=['Menu'])
-def add_menu_item(item: new_item_with_ingredients, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str, str]:
+def add_menu_item(item: NewItemWithIngredients, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str, str]:
     existing_item = session.query(MenuItem).filter_by(item_name=item.item_name).first()
     if existing_item:
         raise HTTPException(status_code=status.HTTP_201_CREATED, detail="Item already exists")
@@ -288,7 +285,7 @@ def add_menu_item(item: new_item_with_ingredients, user: Annotated[User, Depends
         if existing_ingredient:
             continue
 
-        create_item_ingredient(item_ingredients(
+        create_item_ingredient(ItemIngredientsInput(
             item_id=new_item.item_id,
             inventory_id=ingredient.inventory_id,
             quantity=ingredient.quantity
@@ -299,7 +296,7 @@ def add_menu_item(item: new_item_with_ingredients, user: Annotated[User, Depends
     }
 
 @app.patch('/menu/items/manage_details', tags=['Menu'])
-def manage_item_details(item_update: item, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def manage_item_details(item_update: ItemInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     item = session.query(MenuItem).filter_by(item_id=item_update.item_id).first()
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail= "Item not found")
@@ -333,7 +330,7 @@ def remove_item(user: Annotated[User, Depends(validate_role(roles=['manager','ch
 
 
 @app.post('/ingredients/add', tags = ['Ingredients'])
-def add_ingredients( ingredient: item_ingredients, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def add_ingredients( ingredient: ItemIngredientsInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     existing_ingredient = session.query(ItemIngredient).filter_by(item_id=ingredient.item_id, inventory_id = ingredient.inventory_id).first()
     if existing_ingredient:
         raise HTTPException(status_code=status.HTTP_201_CREATED,detail= "Ingredient for item already stored")
@@ -344,7 +341,7 @@ def add_ingredients( ingredient: item_ingredients, user: Annotated[User, Depends
     return {"message": f"Ingredient added successfully"}
 
 @app.patch('/ingredients/manage', tags=['Ingredients'])
-def manage_ingredients(ingredient: item_ingredients, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def manage_ingredients(ingredient: ItemIngredientsInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     ingredient_update = session.query(ItemIngredient).filter_by(item_id=ingredient.item_id, inventory_id = ingredient.inventory_id).first()
     if not ingredient_update:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail= "Item not found")

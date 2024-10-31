@@ -7,12 +7,12 @@ from sqlalchemy.orm.exc import NoResultFound
 from jwt import encode as jwt_encode, decode as jwt_decode, ExpiredSignatureError
 from passlib.context import CryptContext
 
+from root.schemas.auth import Key, SignUpRequest
 from root.utils.bcrypt_helper import hash_pwd
 
-from ..database.database_models import session, Role, User, Credential, SessionKey
-from ..database.data_format import *
-from .verify_credentials import get_UID_by_email, set_credentials, verify_login, ValidEmail, ValidPassword, ValidUserData, ValidUsername
-from .get_user_data_from_db import get_user_data_by_UID, get_role, get_user, UserData, Users
+from root.database.database_models import session, Role, User, Credential, SessionKey
+from root.account.verify_credentials import get_UID_by_email, set_credentials, verify_login, ValidEmail, ValidPassword, ValidUserData, ValidUsername
+from root.account.get_user_data_from_db import get_user_data_by_UID, get_role, get_user, UserData, Users
 from api import app
 
 SECRET_KEY = "512d12erd518952976c0db0m7trw95unf785mr9642hx57yb215"

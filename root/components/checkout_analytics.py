@@ -8,7 +8,6 @@ import zpl
 
 from root.account.account import validate_role
 from root.database.database_models import User,Machine, InventoryBatch, Order, OrderItem, session, MenuItem
-from root.database.data_format import Order
 
 from api import app
 

@@ -1,15 +1,9 @@
-from pydantic import BaseModel, Field
-from datetime import datetime,date, timezone, time
-from fastapi import Depends, HTTPException, status, Query
-from typing import Annotated,Literal,List, Optional
-from sqlalchemy import select, and_, func
+from datetime import datetime
+from fastapi import Depends, HTTPException, status
+from typing import Annotated
 
-from root.components.voucher import voucher_base, voucher_requirement_base, create_voucher,apply_voucher
-from root.account.get_user_data_from_db import get_role
-from root.components.inventory_management import item, inventory
 from root.account.account import validate_role
-from root.database.database_models import User, Inventory,Machine, Order,UserItemRating,UserOverallFeedback, OrderItem, session, MenuItem, ItemIngredient, CartItem, ShoppingCart, Voucher
-from root.database.data_format import *
+from root.database.database_models import User, Machine, session
 from api import app
 
 
@@ -61,7 +55,6 @@ def report_issue(machine_id: str, issue_description: str, user: Annotated[User, 
     session.commit()
     print(f"Machine {machine.machine_name} has been reported with issue: {issue_description}")
     return machine
-
 
 @app.patch('/machines/resolve_issue', tags=['Machines'])
 def resolve_issue(machine_id: str, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):

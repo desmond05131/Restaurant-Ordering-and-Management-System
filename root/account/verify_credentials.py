@@ -5,7 +5,7 @@ from root.database.database_models import session, Credential,User
 from passlib.context import CryptContext
 
 from root.utils.bcrypt_helper import hash_pwd, verify_pwd
-from ..database.data_format import SignUpRequest, EditUserRequest,Key
+from root.schemas.auth import SignUpRequest
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
 

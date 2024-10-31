@@ -1,20 +1,21 @@
-from pydantic import BaseModel, Field
-from datetime import datetime,date, timezone, time, timedelta
-from fastapi import Depends, HTTPException, status, Query
+from datetime import datetime,timedelta
+from fastapi import Depends, HTTPException, status
 from fastapi_utils.tasks import repeat_every
 from typing import Annotated,Literal,List, Optional
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, func
 
-from root.components.voucher import voucher_base, voucher_requirement_base, create_voucher,apply_voucher
+from root.components.voucher import apply_voucher
 from root.account.get_user_data_from_db import get_role
-from root.components.inventory_management import item, inventory
 from root.account.account import validate_role
-from root.database.database_models import User, Inventory, Order, OrderItem, session,UserItemRating,UserOverallFeedback, MenuItem,ItemIngredient, CartItem, ShoppingCart, Voucher
-from root.database.data_format import *
+from root.database.database_models import User, Inventory, Order, OrderItem, session,MenuItem,ItemIngredient, CartItem, ShoppingCart
 from api import app
+from root.schemas.cart import AddItemToCart, CartItemInput, ItemsInCart, ShoppingCartInput
+from root.schemas.item import GetItem
+from root.schemas.order import OrderCreated
+from sqlalchemy.orm.exc import NoResultFound
 
 
-def create_cart(cart_info: shopping_cart):
+def create_cart(cart_info: ShoppingCartInput):
     cart = session.query(ShoppingCart).filter(ShoppingCart.table_id == cart_info.table_number).filter(ShoppingCart.status == 'Active').one_or_none()
     if cart:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Table already has an active cart,please ask the waiter for assistance")
@@ -34,7 +35,7 @@ def create_cart(cart_info: shopping_cart):
     session.flush(new_cart)
     return new_cart
 
-def cart_add_item(item: cart_item):
+def cart_add_item(item: CartItemInput):
     cart_item = CartItem(
         item_id = item.item_id,
         cart_id = item.cart_id,
@@ -81,7 +82,7 @@ def calculate_net_total(cart_id: int):
     return cart.net_total
 
 
-def SubmitOrder(order_info: order_created, items: items_in_cart):
+def SubmitOrder(order_info: OrderCreated, items: ItemsInCart):
     new_order = Order(
         user_id = order_info.user_id,
         table_number = order_info.table_number,
@@ -125,7 +126,7 @@ def delete_all_order():
 
 
 @app.get('/menu/view', tags=['Menu'])
-async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef', 'cashier', 'customer']))], search_keyword: str = None) -> List[Get_item]:
+async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef', 'cashier', 'customer']))], search_keyword: str = None) -> List[GetItem]:
 
     if get_role(user.user_id) in ['manager', 'chef']:
         if search_keyword:
@@ -173,14 +174,14 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
                     "quantity": inventory.quantity
                 })
 
-            items.append(Get_item(**row_dict))
+            items.append(GetItem(**row_dict))
 
         return items
     else:
         items = []
 
         for item in session.query(MenuItem).order_by(MenuItem.item_id).all():
-            items.append(Get_item(
+            items.append(GetItem(
                 item_id = item.item_id,
                 item_name = item.item_name,
                 price = item.price,
@@ -192,11 +193,11 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
         return items
 
 @app.patch('/cart/add_item', tags=['Cart'])
-def add_items_to_cart(item: add_item_to_cart,table_number: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
+def add_items_to_cart(item: AddItemToCart,table_number: int, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
     if not cart:
-        create_cart(shopping_cart(user_id=user_id, table_number=table_number, status='Active'))
+        create_cart(ShoppingCartInput(user_id=user_id, table_number=table_number, status='Active'))
 
     item_price = session.query(MenuItem).filter(MenuItem.item_id == item.item_id).one().price
     cart_item = cart_add_item(cart_item(**item.model_dump(), cart_id=cart.cart_id, price=item_price))
@@ -225,7 +226,7 @@ def remove_item_from_cart(item_id: int, user: Annotated[User, Depends(validate_r
     return {"message": f"Item {cart_item.item_name} removed from cart"}
 
 @app.patch('/cart/update_item', tags=['Cart'])
-def update_item_in_cart(item: add_item_to_cart, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
+def update_item_in_cart(item: AddItemToCart, user: Annotated[User, Depends(validate_role(roles=['customer','manager']))]):
     user_id = user.user_id
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id).filter(ShoppingCart.status == 'Active').one()
     if not cart:
@@ -310,7 +311,7 @@ def submit_cart(user: Annotated[User, Depends(validate_role(roles=['customer','m
     if not cart_items:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart is empty")
 
-    order = SubmitOrder(order_created(user_id=user_id, table_number=cart.table_number, subtotal=cart.subtotal, service_charge=cart.service_charge, service_tax=cart.service_tax, rounding_adjustment=cart.rounding_adjustment, net_total=cart.net_total), items_in_cart(items=[add_items_to_order(**item.model_dump()) for item in cart_items]))
+    order = SubmitOrder(OrderCreated(user_id=user_id, table_number=cart.table_number, subtotal=cart.subtotal, service_charge=cart.service_charge, service_tax=cart.service_tax, rounding_adjustment=cart.rounding_adjustment, net_total=cart.net_total), ItemsInCart(items=[AddItemsToOrder(**item.model_dump()) for item in cart_items]))
     cart.status = 'Submitted'
     session.commit()
 
@@ -327,7 +328,7 @@ def expire_old_carts():
         cart.status = 'Expired'
         session.commit()
 
-@app.get('/orders/view/{order_id}', response_model= order_created, tags=['Orders'])
+@app.get('/orders/view/{order_id}', response_model= OrderCreated, tags=['Orders'])
 def view_order_details(order_id: int, user: Annotated[User, Depends(validate_role(roles=['Manager', 'Chef']))]):
     order = session.query(Order).filter(
         Order.user_id == user.user_id, func.date(Order.time_placed) == datetime.now().date()).order_by(Order.time_placed.desc()).first()

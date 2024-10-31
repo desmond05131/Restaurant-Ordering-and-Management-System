@@ -3,14 +3,12 @@ from typing import Annotated,Optional
 
 from root.account.account import validate_role
 from root.database.database_models import User, Order,UserItemRating,UserOverallFeedback, OrderItem, session, MenuItem
-from root.database.data_format import *
 from api import app
 
-def count_number_of_ratings(item_id):
+def count_number_of_ratings(item_id: int) -> int:
     return session.query(UserItemRating).filter(UserItemRating.item_id == item_id).count()
 
-
-def update_rating(item_id, rating):
+def update_rating(item_id: int, rating: int):
     item = session.query(MenuItem).filter(MenuItem.item_id == item_id).one_or_none()
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")

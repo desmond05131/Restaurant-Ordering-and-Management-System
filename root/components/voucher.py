@@ -1,18 +1,15 @@
-from pydantic import BaseModel, Field
-from datetime import datetime,date, timezone, time
-from fastapi import Depends, HTTPException, status, Query
-from typing import Annotated,Literal,List, Optional
-from sqlalchemy import select, and_, func
+from datetime import datetime
+from fastapi import Depends, HTTPException
+from typing import Annotated,Literal,Optional
+from sqlalchemy import and_, func
 
-from root.account.get_user_data_from_db import get_role
-from root.components.inventory_management import item, inventory
 from root.account.account import validate_role
-from root.database.database_models import User,VoucherRequirement, Inventory, Order, OrderItem, session, MenuItem, ItemIngredient, CartItem, ShoppingCart, Voucher
-from root.database.data_format import voucher_base, voucher_requirement_base, UserVoucher
+from root.database.database_models import User,VoucherRequirement, OrderItem, session, ShoppingCart, Voucher, UserVoucher
+from root.schemas.voucher import VoucherBase, VoucherRequirementBase
 from api import app
 
 
-def create_voucher(voucher: voucher_base, voucher_requirement: voucher_requirement_base):
+def create_voucher(voucher: VoucherBase, voucher_requirement: VoucherRequirementBase):
     new_voucher = Voucher(
         voucher_code = voucher.voucher_code,
         voucher_type = voucher.voucher_type,
@@ -127,7 +124,7 @@ def apply_voucher(voucher_code: int, user_id: int, order_id: int):
 
     
 @app.post("/voucher/create",tags=["Voucher"])
-def create_voucher_endpoint(voucher: voucher_base, voucher_requirement: voucher_requirement_base,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
+def create_voucher_endpoint(voucher: VoucherBase, voucher_requirement: VoucherRequirementBase,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
     if session.query(Voucher).filter(Voucher.voucher_code == voucher.voucher_code).first() is not None:
         raise HTTPException(status_code=400, detail="Voucher code already exists")
     create_voucher(voucher, voucher_requirement)
