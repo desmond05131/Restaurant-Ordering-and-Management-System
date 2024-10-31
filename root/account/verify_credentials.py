@@ -3,6 +3,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from root.account.get_user_data_from_db import get_user_data_by_UID
 from root.database.database_models import session, Credential,User
 from passlib.context import CryptContext
+
+from root.utils.bcrypt_helper import hash_pwd, verify_pwd
 from ..database.data_format import SignUpRequest, EditUserRequest,Key
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
@@ -54,9 +56,9 @@ def get_UID_by_email(email: str) -> int:
 # Set credentials in the database
 def set_credentials(email: str, password: str):
     try:
-        Password_hash = bcrypt_context.hash(password)
+        password_hash = hash_pwd(password)
         user_id = get_UID_by_email(email)
-        new_credentials = Credential(user_id=user_id, password_hash=Password_hash)
+        new_credentials = Credential(user_id=user_id, password_hash=password_hash)
         session.add(new_credentials)
         session.commit()
         print("Credentials set successfully.")
@@ -71,7 +73,7 @@ def verify_login(email: str, password: str):
         user_data = get_user_data_by_UID(get_UID_by_email(email))
         credentials = session.query(Credential).filter_by(user_id=user_data['user_id']).one()
 
-        if bcrypt_context.verify(password, credentials.password_hash):
+        if verify_pwd(password, credentials.password_hash):
             print("Login successfully")
             return user_data
         else:

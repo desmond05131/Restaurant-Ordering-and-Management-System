@@ -7,6 +7,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from jwt import encode as jwt_encode, decode as jwt_decode, ExpiredSignatureError
 from passlib.context import CryptContext
 
+from root.utils.bcrypt_helper import hash_pwd
+
 from ..database.database_models import session, Role, User, Credential, SessionKey
 from ..database.data_format import *
 from .verify_credentials import get_UID_by_email, set_credentials, verify_login, ValidEmail, ValidPassword, ValidUserData, ValidUsername
@@ -24,7 +26,7 @@ def sign_up(sign_up_request: SignUpRequest):
     session.add(user)
     session.flush()  # To generate user.UID before it's used in Credentials
     print(sign_up_request.password)
-    credential = Credential(user_id=user.user_id, password_hash=bcrypt_context.hash(sign_up_request.password))
+    credential = Credential(user_id=user.user_id, password_hash=hash_pwd(sign_up_request.password))
     session.add(credential)
     session.commit()
     print(f"User {user.username} created successfully.")
@@ -42,6 +44,8 @@ async def try_sign_up(sign_up_request: SignUpRequest):
             raise LookupError("Email already registered")
 
         sign_up(sign_up_request)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
     except LookupError as err:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -69,9 +73,9 @@ async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, 
 
     print(user)
 
-    created_key = create_session_key(user['Username'], user['UID'], timedelta(minutes=120))
+    created_key = create_session_key(user['username'], user['user_id'], timedelta(minutes=120))
 
-    for key in user['Key']:
+    for key in user['key']:
         try:
             validate_session_key(key)
         except:
@@ -172,7 +176,7 @@ def create_account(account_details: create_account_details):
     session.add(user)
     session.flush()  # To generate user.UID before it's used in Credentials
     print(account_details.password)
-    credential = Credential(user_id=user.user_id, password_hash=bcrypt_context.hash(account_details.password))
+    credential = Credential(user_id=user.user_id, password_hash=hash_pwd(account_details.password))
     session.add(credential)
     session.commit()
     print(f"User {user.username} created successfully.")
@@ -187,7 +191,12 @@ def create_account_if_not_exist(account_details : create_account_details):
 
 @app.post('/account/create/',tags = ['account'])
 async def manager_create_account(user : Annotated[User, Depends(validate_role(roles=['manager']))], account_details : create_account_details):
-    create_account_if_not_exist(account_details)
+    try:
+        create_account_if_not_exist(account_details)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 ##edit credentials
 @app.patch('/account/edit/credentials', tags = ['account'])
@@ -196,7 +205,7 @@ def edit_credentials(user: Annotated[User, Depends(validate_role(roles=['manager
     if user_id is None:
         raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail='user not found')
     try:
-        new_password_hash= bcrypt_context.hash(new_password)
+        new_password_hash= hash_pwd(new_password)
         credentials = session.query(Credential).filter_by(user_id = user_id).one()
         credentials.password_hash = new_password_hash
         session.commit()
