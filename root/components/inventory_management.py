@@ -1,7 +1,8 @@
 from datetime import date
 from fastapi import Depends, HTTPException, status
-from typing import Annotated, List, Dict
+from typing import Annotated, Any, List, Dict, Optional
 from fastapi_utils.tasks import repeat_every
+from sqlalchemy import and_
 
 from root.account.account import validate_role
 from root.database.database_models import session,User, Inventory, MenuItem, ItemIngredient, InventoryBatch, BatchPackage
@@ -122,12 +123,12 @@ def manage_inventory_details( inventory_update: InventoryInput, user: Annotated[
     inventory.inventory_name = inventory_update.inventory_name
     inventory.unit = inventory_update.unit
     session.commit()
-    return {"message": f"Product '{inventory_update.inventory_name}' updated with unit: {inventory_update.unit}"}
+    return {"message": f"Product '{inventory_update.inventory_name}' updated with unit {inventory_update.unit}"}
 
 
 @app.delete('/inventory/remove', tags=['Inventory'])
 def remove_inventory(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))],inventory_id: int, inventory_name: str):
-    inventory = session.query(Inventory).filter_by(inventory_name=inventory_name, inventory_id= inventory_id).one()
+    inventory = session.query(Inventory).filter_by(inventory_name=inventory_name, inventory_id= inventory_id).first()
 
     if not inventory:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory not found")
@@ -194,7 +195,7 @@ def manage_batch_details(batch: NewBatch, user: Annotated[User, Depends(validate
 
 @app.delete('/inventory/batch/remove', tags=['Inventory'])
 def remove_batch(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))], batch_id: int, inventory_id: int):
-    batch = session.query(InventoryBatch).filter_by(batch_id=batch_id, inventory_id=inventory_id).one()
+    batch = session.query(InventoryBatch).filter_by(batch_id=batch_id, inventory_id=inventory_id).first()
 
     if not batch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Batch not found")
@@ -306,64 +307,30 @@ def manage_item_details(item_update: ItemInput, user: Annotated[User, Depends(va
     item.picture_link = item_update.picture_link
     item.description =item_update.description
     item.category = item_update.category
+    item.is_deleted = item_update.is_deleted
     session.commit()
     return {"message": f"Product '{item_update.item_id}' updated successfully"}
 
 @app.delete('/menu/items/remove', tags=['Menu'])
 def remove_item(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))],item_name: str,item_id: int):
-
-    delete_ingredient = session.query(ItemIngredient).filter_by(item_id=item_id).delete()
-    if not delete_ingredient:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ingredient not found")
+    try:
+        delete_ingredient = session.query(ItemIngredient).filter_by(item_id=item_id).delete()
+        if not delete_ingredient:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ingredient not found")
+    except:
+        pass
 
     session.commit()
 
-    item = session.query(MenuItem).filter_by(item_id=item_id,item_name=item_name).one()
+    item = session.query(MenuItem).filter(and_(MenuItem.item_id==item_id,MenuItem.item_name==item_name, MenuItem.is_deleted==False)).one()
 
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
-    session.delete(item)
+    item.is_deleted = True
     session.commit()
    
     return {"message": f"Item '{item_name}' and ingredients for '{item_name}' removed successfully"}
-
-
-@app.post('/ingredients/add', tags = ['Ingredients'])
-def add_ingredients( ingredient: ItemIngredientsInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
-    existing_ingredient = session.query(ItemIngredient).filter_by(item_id=ingredient.item_id, inventory_id = ingredient.inventory_id).first()
-    if existing_ingredient:
-        raise HTTPException(status_code=status.HTTP_201_CREATED,detail= "Ingredient for item already stored")
-
-    ingredient = ItemIngredient(item_id=ingredient.item_id, inventory_id=ingredient.inventory_id,quantity = ingredient.quantity)
-    session.add(ingredient)
-    session.commit()
-    return {"message": f"Ingredient added successfully"}
-
-@app.patch('/ingredients/manage', tags=['Ingredients'])
-def manage_ingredients(ingredient: ItemIngredientsInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
-    ingredient_update = session.query(ItemIngredient).filter_by(item_id=ingredient.item_id, inventory_id = ingredient.inventory_id).first()
-    if not ingredient_update:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail= "Item not found")
-    
-    ingredient_update.item_id = ingredient.item_id 
-    ingredient_update.inventory_id = ingredient.inventory_id 
-    ingredient_update.quantity = ingredient.quantity 
-   
-    session.commit()
-    return {"message": f"Ingredient '{ingredient_update.item_id}' updated successfully"}
-
-
-@app.delete('/ingredients/remove', tags = ['Ingredients'])
-def remove_ingredient (user: Annotated[User, Depends(validate_role(roles=['manager','chef']))],item_id: int, inventory_id : int):
-    ingredient = session.query(ItemIngredient).filter_by(item_id=item_id,inventory_id = inventory_id ).one()
-
-    if not ingredient:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ingredient not found")
-
-    session.delete(ingredient)
-    session.commit()
-    return {"message": f"Ingredient removed successfully"}
 
 
 @app.on_event("startup")
@@ -410,8 +377,6 @@ def recalculate_inventory_quantities() -> None:
             
             print(f"Recalculated inventory {inventory.inventory_name}: Initial Quantity = {initial_total_quantity}, Total New Inventory = {total_fresh_inventory}, Updated Quantity = {inventory.quantity}")
 
-
-
 @app.on_event("startup")
 @repeat_every(seconds=3600) 
 def check_inventory_levels() -> None:
@@ -420,32 +385,27 @@ def check_inventory_levels() -> None:
         check_stock_levels(inventory)
 
 @app.get('/inventory/view', tags=['Inventory'])
-def view_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
+def view_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
     inventories = session.query(Inventory).all()
     return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in inventories]
 
 @app.get('/inventory/batch/view', tags=['Inventory'])
-def view_batch(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
+def view_batch(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
     batches = session.query(InventoryBatch).all()
     return [{"Batch_id": batch.batch_id, "Inventory_id": batch.inventory_id, "No_of_Package": batch.no_of_package, "Quantity_per_package": batch.quantity_per_package, "Acquisition_date": batch.acquisition_date, "Expiration_date": batch.expiration_date, "Cost": batch.cost, "Cost_per_unit": batch.cost_per_unit} for batch in batches]
 
 @app.get('/inventory/batch/package/view', tags=['Inventory'])
-def view_package(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
+def view_package(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
     packages = session.query(BatchPackage).all()
     return [{"Package_id": package.package_id, "Batch_id": package.batch_id, "Inventory_id": package.inventory_id, "Status": package.status} for package in packages]
 
 @app.get('/menu/items/view', tags=['Menu'])
-def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
+def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
     items = session.query(MenuItem).all()
     return [{"Item_id": item.item_id, "Item_name": item.item_name, "Price": item.price, "Picture_link": item.picture_link, "Description": item.description, "Category": item.category} for item in items]
 
-@app.get('/ingredients/view', tags=['Ingredients'])
-def view_ingredients(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
-    ingredients = session.query(ItemIngredient).all()
-    return [{"Item_id": ingredient.item_id, "Inventory_id": ingredient.inventory_id, "quantity": ingredient.quantity} for ingredient in ingredients]
-
 @app.get('/inventory/view/low', tags=['Inventory'])
-def view_low_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, str]]:
+def view_low_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
     low_inventory = session.query(Inventory).filter(Inventory.quantity <= 15).all()
     return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in low_inventory]
 

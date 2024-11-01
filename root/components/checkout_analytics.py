@@ -244,14 +244,14 @@ def get_gross_profit_report(user: Annotated[User, Depends(validate_role(roles=['
 
 
 @app.get('/analytics/popular_items', tags=['Analytics'])
-def generate_popular_items_report(sort_by: Literal['most_ordered', 'least_ordered', 'highest_ratings', 'lowest_ratings'], item_category: Optional[str] = None):
+def generate_popular_items_report(sort_by: Literal['most_ordered', 'least_ordered', 'highest_ratings', 'lowest_ratings'], item_category: Optional[Literal['All','Brunch/Breakfast','Rice','Noodle','Italian','Main Courses','Sides','Signature Dishes','Vegan','Dessert','Beverages']] = None):
     query = session.query(
         MenuItem.item_name,
         func.count(OrderItem.item_id).label('order_count'),
         func.avg(MenuItem.ratings).label('average_rating')
     ).join(OrderItem, MenuItem.item_id == OrderItem.item_id)
 
-    if item_category:
+    if item_category is not None and item_category != 'All':
         query = query.filter(MenuItem.category == item_category)
 
     query = query.group_by(MenuItem.item_name)

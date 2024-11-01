@@ -102,6 +102,7 @@ class MenuItem(Base):
     item_ingredients = relationship('ItemIngredient', back_populates='menu_item') 
     cart_items = relationship('CartItem', back_populates='item')
     user_item_rating = relationship('UserItemRating', back_populates='item')
+    is_deleted = Column(Boolean, default=False)
 
 
 class ItemIngredient(Base):

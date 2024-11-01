@@ -226,12 +226,15 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
         if search_keyword:
             search_keyword = f"%{search_keyword}%"
             query = session.query(MenuItem).where(
-                MenuItem.item_name.ilike(search_keyword) |
-                MenuItem.description.ilike(search_keyword) |
-                MenuItem.category.ilike(search_keyword)
+                and_(
+                    MenuItem.is_deleted == False,
+                    MenuItem.item_name.ilike(search_keyword) |
+                    MenuItem.description.ilike(search_keyword) |
+                    MenuItem.category.ilike(search_keyword)
+                )
             )
         else:
-            query = session.query(MenuItem)
+            query = session.query(MenuItem).where(MenuItem.is_deleted == False)
         
         items = []
 
@@ -274,7 +277,7 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
     else:
         items = []
 
-        for item in session.query(MenuItem).order_by(MenuItem.item_id).all():
+        for item in session.query(MenuItem).where(MenuItem.is_deleted == False).order_by(MenuItem.item_id).all():
             items.append(GetItem(
                 item_id = item.item_id,
                 item_name = item.item_name,

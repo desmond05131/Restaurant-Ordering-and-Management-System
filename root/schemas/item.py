@@ -8,6 +8,7 @@ class ItemInput(BaseModel):
     picture_link: str
     description: str
     category: Literal['All','Brunch/Breakfast','Rice','Noodle','Italian','Main Courses','Sides','Signature Dishes','Vegan','Dessert','Beverages']
+    is_deleted: bool
 
 class IngredientsWithoutItemId(BaseModel):
     inventory_id: int
@@ -23,7 +24,7 @@ class ItemUpdateRequest(BaseModel):
     price: float
     picture_link: str
     description: str
-    category: str
+    category: Literal['All','Brunch/Breakfast','Rice','Noodle','Italian','Main Courses','Sides','Signature Dishes','Vegan','Dessert','Beverages']
 
 class NewItemWithIngredients(ItemUpdateRequest):
     ingredients: List[IngredientsWithoutItemId]
