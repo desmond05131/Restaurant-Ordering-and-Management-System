@@ -64,9 +64,12 @@ def create_session_key(username: str, user_id: int, expires_delta: timedelta):
 
 @app.post("/key", tags = ['Account'])
 async def login_for_session_key(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> Key:
-    user = verify_login(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
+    try:
+        user = verify_login(form_data.username, form_data.password)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate user')
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
     print(user)
 

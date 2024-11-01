@@ -107,7 +107,7 @@ def generate_machine_cost_report(year: int, month: Optional[int] = None, week: O
 
 @app.patch('/orders/checkout', tags=['Orders'])
 def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))], table_number: int, paying_method: Literal['Cash', 'Credit Card', 'Debit Card', 'E-Wallet']):
-    order = session.query(Order).filter(Order.table_number == table_number).order_by(Order.time_placed.desc()).first()
+    order = session.query(Order).filter(Order.table_id == table_number).order_by(Order.time_placed.desc()).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
@@ -117,10 +117,10 @@ def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier',
     session.commit()
 
     receipt_info = {
-        "table_number": order.table_number,
+        "table_number": order.table_number.table_id,
         "order_id": order.order_id,
         "time_placed": order.time_placed,
-        "voucher_applied": order.voucher_applied,
+        "voucher_applied": order.user_voucher.voucher.voucher_code if order.user_voucher else None,
         "subtotal": order.subtotal,
         "service_charge": order.service_charge,
         "service_tax": order.service_tax,
@@ -138,6 +138,7 @@ def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier',
             "remarks": order_item.remarks,
             "status": order_item.status
         })
+        
     def generate_receipt(receipt_info):
         instance = printer.Dummy()
         instance.text(f"Table Number: {receipt_info['table_number']}\n")
@@ -186,7 +187,7 @@ def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier',
 
     generate_receipt(receipt_info)
 
-    generate_receipt(receipt_info)
+    # generate_receipt(receipt_info)
     return {"message": "Order checked out", "receipt": receipt_info, "receipt_files": ["./receipt.bin", "./receipt.zpl"]}
 
 

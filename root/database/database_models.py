@@ -160,13 +160,16 @@ class Order(Base):
     table_id = Column(Integer, ForeignKey('TableNumber.table_id'), nullable=False)
     cart_id = Column(Integer, ForeignKey('ShoppingCart.cart_id'), nullable=False)
     time_placed = Column(DateTime, default= datetime.now(timezone.utc))
-    voucher_applied = Column(Integer, ForeignKey('Voucher.voucher_code'), nullable=True)
+    # voucher_applied = Column(String, ForeignKey('Voucher.voucher_code'), nullable=True)
+    user_voucher_id = Column(Integer, ForeignKey('UserVoucher.user_voucher_id'), nullable=True)
+    user_voucher = relationship('UserVoucher', back_populates='order')
     subtotal = Column(Float, nullable=False)
     service_charge = Column(Float,nullable=False)
     service_tax = Column(Float,nullable=False)
     rounding_adjustment = Column(Float,nullable=False)
     net_total = Column(Float,nullable=False)
     paying_method = Column(Enum('Not Paid Yet','Cash','Credit Card','Debit Card','E-Wallet'), default='Not Paid Yet', nullable=False)
+    is_cancelled = Column(Boolean, default=False)
     table_number = relationship('TableNumber', back_populates='order')
     user = relationship('User', back_populates='order')
     order_items = relationship('OrderItem', back_populates='order')
@@ -176,7 +179,8 @@ class Order(Base):
 
 class OrderItem(Base):
     __tablename__ = 'OrderItem'
-    item_id = Column(Integer, ForeignKey('MenuItem.item_id'),primary_key=True)
+    order_item_id = Column(Integer, primary_key=True, autoincrement=True)
+    item_id = Column(Integer, ForeignKey('MenuItem.item_id'), nullable=False)
     order_id = Column(Integer, ForeignKey('Order.order_id'), nullable=False)
     item_name = Column(String, nullable=False)
     quantity = Column(Integer, nullable=False)
@@ -210,11 +214,13 @@ class VoucherRequirement(Base):
 
 class UserVoucher(Base):
     __tablename__= 'UserVoucher'
-    UID = Column(Integer, ForeignKey('UserData.user_id'), primary_key=True)
-    voucher_id = Column(Integer, ForeignKey('Voucher.voucher_id'), primary_key=True)
+    user_voucher_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('UserData.user_id'), nullable=False)
+    voucher_id = Column(Integer, ForeignKey('Voucher.voucher_id'), nullable=False)
     use_date = Column(DateTime)
     user = relationship('User', back_populates='user_voucher')
     voucher = relationship('Voucher', back_populates='user_voucher')
+    order = relationship('Order', back_populates='user_voucher')
 
 class UserItemRating(Base):
     __tablename__ = 'UserItemRating'

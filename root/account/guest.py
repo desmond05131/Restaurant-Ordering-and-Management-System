@@ -33,8 +33,8 @@ async def create_guest_session_key() -> Key:
 
     return Key(access_token= created_key, token_type= 'bearer')
 
-@app.post("/account/guest/signup", tags = ['Account'])
-async def guest_signup(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))],sign_up_request: SignUpRequest):
+@app.post("/account/guest/convert", tags = ['Account'])
+async def convert_guest_to_user(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))],sign_up_request: SignUpRequest):
     try:
         user_account = session.query(User).filter(User.user_id == user.user_id).filter(User.is_guest == True).one_or_none()
         if user_account is None:

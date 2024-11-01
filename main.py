@@ -158,8 +158,8 @@ def create_test_vouchers():
                 "voucher_type": "percentage discount",
                 "description": "10% off on all items",
                 "discount_value": 0.10,
-                "expiry_date": datetime(2024, 10, 30).date(),
-                "begin_date": datetime(2025, 1, 1).date(),
+                "expiry_date": datetime(2024, 11, 30).date(),
+                "begin_date": datetime(2024, 1, 1).date(),
                 "required_points": 100,
                 "usage_limit": 100,
                 "applicable_item_id": None,
@@ -172,8 +172,8 @@ def create_test_vouchers():
                 "voucher_type": "fixed amount discount",
                 "description": "$5 off on orders above $20",
                 "discount_value": 5,
-                "expiry_date": datetime(2024, 10, 30).date(),
-                "begin_date": datetime(2025, 1, 1).date(),
+                "expiry_date": datetime(2024, 11, 30).date(),
+                "begin_date": datetime(2024, 1, 1).date(),
                 "required_points": 50,
                 "usage_limit": 50,
                 "applicable_item_id": None,
@@ -186,8 +186,8 @@ def create_test_vouchers():
                 "voucher_type": "free item",
                 "description": "Get a free item with your order",
                 "discount_value": 0,
-                "expiry_date": datetime(2024, 10, 30).date(),
-                "begin_date": datetime(2025, 1, 1).date(),
+                "expiry_date": datetime(2024, 11, 30).date(),
+                "begin_date": datetime(2024, 1, 1).date(),
                 "required_points": 200,
                 "usage_limit": 10,
                 "applicable_item_id": 1,  # Assuming item with ID 1 exists
@@ -216,8 +216,8 @@ def create_test_vouchers():
             )
             create_voucher(voucher, voucher_requirement)
 
-# create_test_vouchers()
 # Call the function to populate the database with test data
+# create_test_vouchers()
 # generate_test_data()
 # test_signup_manager()
 # test_signup()

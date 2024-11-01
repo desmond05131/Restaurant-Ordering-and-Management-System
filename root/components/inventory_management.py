@@ -90,8 +90,8 @@ def update_quantity(inventory_id: int, no_of_package: int, quantity_per_package:
     print(f"Inventory {inventory.inventory_name} updated successfully with new quantity: {inventory.quantity}")
     return inventory
 
-def send_stock_alert_message(inventory_name: str, remain_quantity: int, unit: str):
-    message = f"Alert: Only{remain_quantity} {unit} of {inventory_name} is left"
+def send_stock_alert_message(inventory_name: str, remain_quantity: int):
+    message = f"Alert: Only {remain_quantity} {inventory_name} is left in the inventory"
     print(message)
 
 def check_stock_levels(inventory: Inventory):

@@ -8,7 +8,7 @@ class OrderCreated(BaseModel):
     table_id: int
     cart_id: int
     time_placed: datetime
-    voucher_applied: Optional[int] = Field(None, alias='voucher_applied')
+    user_voucher_id: Optional[int]
     subtotal: float
     service_charge: float
     service_tax: float

@@ -1,6 +1,8 @@
 from fastapi import Depends, HTTPException, status
 from typing import Annotated,Optional
 
+from sqlalchemy import and_
+
 from root.account.account import validate_role
 from root.database.database_models import User, Order,UserItemRating,UserOverallFeedback, OrderItem, session, MenuItem
 from api import app
@@ -15,7 +17,7 @@ def update_rating(item_id: int, rating: int):
     
     number_of_ratings = count_number_of_ratings(item_id)
 
-    item.ratings = (item.ratings * number_of_ratings + rating) / (number_of_ratings + 1)
+    item.ratings = ((item.ratings if item.ratings is not None else 0) * number_of_ratings + rating) / (number_of_ratings + 1)
     session.commit()
 
 @app.post('/rating/rate_item', tags=['Ratings'])
@@ -23,7 +25,7 @@ def rate_order_item(user: Annotated[User, Depends(validate_role(roles=['customer
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
 
-    order = session.query(Order).filter(Order.user_id == user.user_id).order_by(Order.time_placed.desc()).first()
+    order = session.query(Order).filter(and_(Order.user_id == user.user_id, Order.is_cancelled == False)).order_by(Order.time_placed.desc()).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 

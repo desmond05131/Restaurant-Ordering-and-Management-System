@@ -66,49 +66,56 @@ def redeem_voucher(voucher_id: int, user_id: int):
     session.commit()
     print(f"User {user.username} has successfully redeemed voucher {voucher.voucher_code}")
 
+def unapply_voucher(voucher_code: str, user_id: int):
+    user = session.query(User).filter(User.user_id == user_id).first()
+    voucher = session.query(Voucher).filter(Voucher.voucher_code == voucher_code).first()
+    voucher.usage_limit += 1
+    session.commit()
+    print(f"User {user.username} has successfully unapplied voucher {voucher_code}")
 
-
-def apply_voucher(voucher_code: int, user_id: int, order_id: int):
+def apply_voucher(voucher_code: str, user_id: int, order_id: int):
     voucher = session.query(Voucher).filter(Voucher.voucher_code == voucher_code).first()
     if voucher is None:
         raise HTTPException(status_code=404, detail="Voucher not found")
     voucher_requirement = session.query(VoucherRequirement).filter(VoucherRequirement.voucher_id == voucher.voucher_id).first()
     user = session.query(User).filter(User.user_id == user_id).first()
-    user_voucher = session.query(UserVoucher).filter(and_(UserVoucher.user_id == user_id, UserVoucher.voucher_id == voucher.voucher_id)).first()
+    user_voucher = session.query(UserVoucher).filter(and_(UserVoucher.user_id == user_id, UserVoucher.voucher_id == voucher.voucher_id, UserVoucher.use_date == None)).first()
     if user_voucher is None:
         raise HTTPException(status_code=400, detail="User has not claimed this voucher")
     cart = session.query(ShoppingCart).filter(ShoppingCart.user_id == user_id,func.date(ShoppingCart.creation_time) == datetime.now().date()).order_by(ShoppingCart.creation_time.desc()).first()
     if cart is None:    
         raise HTTPException(status_code=404, detail="Cart not found")
-    if voucher.expiry_date < datetime.now().date():
+    if cart.voucher_applied == voucher.voucher_code:
+        raise HTTPException(status_code=400, detail="Voucher already applied")
+    elif cart.voucher_applied is not None:
+        unapply_voucher(cart.voucher_applied, user_id)
+    if voucher.expiry_date.date() < datetime.now().date():
         raise HTTPException(status_code=400, detail="Voucher has expired")
-    if voucher.begin_date > datetime.now().date():
+    if voucher.begin_date.date() > datetime.now().date():
         raise HTTPException(status_code=400, detail="Voucher has not started yet")
     if voucher.usage_limit is not None:
         if voucher.usage_limit == 0:
             raise HTTPException(status_code=400, detail="Voucher has reached usage limit")
-        else:
-            voucher.usage_limit -= 1
     current_time = datetime.now().time()
     if voucher_requirement.requirement_time > current_time:
         raise HTTPException(status_code=400, detail="Voucher has not reached requirement time")
     if voucher_requirement.minimum_spend > cart.subtotal:
         raise HTTPException(status_code=400, detail="Minimum spend not reached")
     
-    if voucher.voucher_type == 'percentage discount':
-        discount = cart.subtotal * voucher.discount_value
-        if voucher_requirement.capped_amount is not None:
-            if discount > voucher_requirement.capped_amount:
-                discount = voucher_requirement.capped_amount
-        cart.subtotal -= discount
+    # if voucher.voucher_type == 'percentage discount':
+    #     discount = cart.subtotal * voucher.discount_value
+    #     if voucher_requirement.capped_amount is not None:
+    #         if discount > voucher_requirement.capped_amount:
+    #             discount = voucher_requirement.capped_amount
+    #     cart.subtotal -= discount
 
-    elif voucher.voucher_type == 'fixed amount discount':
-        discount = voucher.discount_value
-        cart.subtotal -= discount
+    # elif voucher.voucher_type == 'fixed amount discount':
+    #     discount = voucher.discount_value
+    #     cart.subtotal -= discount
 
 
-    elif voucher.voucher_type == 'free item':
-        discount = 0
+    if voucher.voucher_type == 'free item':
+        # discount = 0
         new_order_item = OrderItem(
             order_id = order_id,
             item_id = voucher_requirement.applicable_item_id,
@@ -118,10 +125,18 @@ def apply_voucher(voucher_code: int, user_id: int, order_id: int):
         session.add(new_order_item)
 
     cart.voucher_applied = voucher_code
+    voucher.usage_limit -= 1
     session.commit()
     print(f"User {user.username} has successfully applied voucher {voucher.voucher_code} to order {order_id}")
        
-
+def invalidate_used_voucher(voucher_code: str, user_id: int) -> int:
+    voucher = session.query(Voucher).filter(Voucher.voucher_code == voucher_code).first()
+    userVoucher = session.query(UserVoucher).filter(and_(UserVoucher.voucher_id == voucher.voucher_id, UserVoucher.user_id == user_id, UserVoucher.use_date is None)).first()
+    userVoucher.use_date = datetime.now()
+    
+    session.commit()
+    
+    return userVoucher.user_voucher_id
     
 @app.post("/voucher/create",tags=["Voucher"])
 def create_voucher_endpoint(voucher: VoucherBase, voucher_requirement: VoucherRequirementBase,user: Annotated[User, Depends(validate_role(roles=['cashier', 'manager']))]):
