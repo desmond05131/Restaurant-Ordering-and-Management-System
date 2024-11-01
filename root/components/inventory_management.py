@@ -5,14 +5,14 @@ from fastapi_utils.tasks import repeat_every
 from sqlalchemy import and_
 
 from root.account.account import validate_role
-from root.database.database_models import session,User, Inventory, MenuItem, ItemIngredient, InventoryBatch, BatchPackage
+from root.database.database_models import session,User, Inventory, MenuItem, ItemIngredient, InventoryBatch
 from api import app
 from root.schemas.item import ItemInput, ItemIngredientsInput, NewItemWithIngredients
-from root.schemas.inventory import BatchPackageCreate, InventoryInput, NewBatch, InventoryUpdateRequest
+from root.schemas.inventory import BatchUpdateInput, InventoryUpdateInput, BatchCreateInput, InventoryCreateInput
 
 
 
-def create_inventory(ingredient: InventoryInput):
+def create_inventory(ingredient: InventoryCreateInput):
     db_inventory = Inventory(
         inventory_name= ingredient.inventory_name,
         quantity=ingredient.quantity,
@@ -52,9 +52,8 @@ def create_item_ingredient(item_ingredient: ItemIngredientsInput):
         print(f"Ingredients {db_ingredient.item_id} created successfully.")
         return db_ingredient
 
-def create_batch(batch: NewBatch):
+def create_batch(batch: BatchCreateInput):
     db_batch = InventoryBatch(
-        batch_id = batch.batch_id,
         inventory_id = batch.inventory_id,
         no_of_package = batch.no_of_package,
         quantity_per_package = batch.quantity_per_package,
@@ -62,6 +61,7 @@ def create_batch(batch: NewBatch):
         expiration_date = batch.expiration_date,
         cost = batch.cost,
         cost_per_unit = batch.cost_per_unit,
+        status = 'New'
     )
     session.add(db_batch)
     session.commit()
@@ -69,18 +69,6 @@ def create_batch(batch: NewBatch):
     print(f"Batch {db_batch.batch_id} created successfully.")
     return db_batch
     
-def create_package(package: BatchPackageCreate):
-    db_package = BatchPackage(
-        batch_id = package.batch_id,
-        inventory_id = package.inventory_id,
-        status = 'New',
-    )
-    session.add(db_package)
-    session.commit()
-    session.refresh(db_package)
-    print(f"Package {db_package.package_id} created successfully.")
-    return db_package
-
 def update_quantity(inventory_id: int, no_of_package: int, quantity_per_package: float):
     inventory = session.query(Inventory).filter_by(inventory_id=inventory_id).first()
     if not inventory:
@@ -91,31 +79,30 @@ def update_quantity(inventory_id: int, no_of_package: int, quantity_per_package:
     print(f"Inventory {inventory.inventory_name} updated successfully with new quantity: {inventory.quantity}")
     return inventory
 
-def send_stock_alert_message(inventory_name: str, remain_quantity: int):
-    message = f"Alert: Only {remain_quantity} {inventory_name} is left in the inventory"
+def send_stock_alert_message(inventory_name: str, remain_quantity: int, unit: str):
+    message = f"Alert: Only {remain_quantity} {unit} of {inventory_name} is left in the inventory"
     print(message)
 
 def check_stock_levels(inventory: Inventory):
     if inventory.quantity <= 15:
-        send_stock_alert_message(inventory.inventory_name,inventory.quantity)
+        send_stock_alert_message(inventory.inventory_name,inventory.quantity, inventory.unit)
 
 @app.post('/inventory/add', tags=['Inventory'])
-def add_inventory( new_inventory_info: InventoryUpdateRequest, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def add_inventory( new_inventory_info: InventoryCreateInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     existing_inventory = session.query(Inventory).filter_by(inventory_name=new_inventory_info.inventory_name).first()
     if existing_inventory:
-        raise HTTPException(status_code=status.HTTP_201_CREATED,detail= "Inventory already exist")
+        raise HTTPException(status_code=status.HTTP_201_CREATED,detail= "Inventory with this name already exist")
     
     else:
-        create_inventory(InventoryInput(
+        create_inventory(InventoryCreateInput(
             inventory_name=new_inventory_info.inventory_name,
             quantity=new_inventory_info.quantity,
             unit=new_inventory_info.unit
         ))
         return {"message": f"Product '{new_inventory_info.inventory_name}' created with {new_inventory_info.quantity} {new_inventory_info.unit}"}
         
-
 @app.patch('/inventory/manage/details', tags=['Inventory'])
-def manage_inventory_details( inventory_update: InventoryInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def manage_inventory_details(inventory_update: InventoryUpdateInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     inventory = session.query(Inventory).filter_by(inventory_id=inventory_update.inventory_id).first()
     if not inventory:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail= "Inventory not found")
@@ -123,46 +110,48 @@ def manage_inventory_details( inventory_update: InventoryInput, user: Annotated[
     inventory.inventory_name = inventory_update.inventory_name
     inventory.unit = inventory_update.unit
     session.commit()
-    return {"message": f"Product '{inventory_update.inventory_name}' updated with unit {inventory_update.unit}"}
-
+    return {"message": f"Product '{inventory_update.inventory_name}' updated with unit '{inventory_update.unit}'"}
 
 @app.delete('/inventory/remove', tags=['Inventory'])
-def remove_inventory(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))],inventory_id: int, inventory_name: str):
-    inventory = session.query(Inventory).filter_by(inventory_name=inventory_name, inventory_id= inventory_id).first()
+def remove_inventory(inventory_id: int,user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
+    inventory = session.query(Inventory).filter_by(inventory_id= inventory_id).first()
 
     if not inventory:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory not found")
 
     session.delete(inventory)
     session.commit()
-    return {"message": f"Inventory '{inventory_name}' removed successfully"}
+    return {"message": f"Inventory '{inventory.inventory_name}' removed successfully"}
+
+@app.get('/inventory/view', tags=['Inventory'])
+def view_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
+    inventories = session.query(Inventory).all()
+    return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in inventories]
+
+@app.get('/inventory/view/low', tags=['Inventory'])
+def view_low_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
+    low_inventory = session.query(Inventory).filter(Inventory.quantity <= 15).all()
+    return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in low_inventory]
+
 
 
 @app.post('/inventory/batch/add', tags=['Inventory'])
-def restock(batch: NewBatch, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
-    existing_batch = session.query(InventoryBatch).filter_by(batch_id=batch.batch_id).first()
-    if existing_batch:
-        raise HTTPException(status_code=status.HTTP_201_CREATED,detail= "Batch already exist")
-    else:
-        new_batch = create_batch(batch)
-        update_quantity(batch.inventory_id, batch.no_of_package, batch.quantity_per_package)
-        for _ in range(batch.no_of_package):
-            create_package(BatchPackageCreate(
-                batch_id=new_batch.batch_id,
-                inventory_id=new_batch.inventory_id,
-                status='New'
-            ))
-        return {"message": f"Batch '{new_batch.batch_id}' created successfully with {batch.no_of_package} packages"}
+def restock(batch: BatchCreateInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+    if batch.no_of_package <= 0 or batch.quantity_per_package <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid package or quantity. Are you serious?")
+    
+    new_batch = create_batch(batch)
+    update_quantity(batch.inventory_id, batch.no_of_package, batch.quantity_per_package)
+    return {"message": f"Batch '{new_batch.batch_id}' created successfully with {batch.no_of_package} packages"}
     
 @app.patch('/inventory/batch/manage', tags=['Inventory'])
-def manage_batch_details(batch: NewBatch, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
+def manage_batch_details(batch: BatchUpdateInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     batch_update = session.query(InventoryBatch).filter_by(batch_id=batch.batch_id).first()
     if not batch_update:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail= "Batch not found")
     initial_no_of_package = batch_update.no_of_package
     initial_quantity_per_package = batch_update.quantity_per_package
 
-    batch_update.inventory_id = batch.inventory_id
     batch_update.no_of_package = batch.no_of_package
     batch_update.quantity_per_package = batch.quantity_per_package
     batch_update.acquisition_date = batch.acquisition_date
@@ -174,28 +163,16 @@ def manage_batch_details(batch: NewBatch, user: Annotated[User, Depends(validate
     new_total_quantity = batch.no_of_package * batch.quantity_per_package
 
     if initial_total_quantity > new_total_quantity:
-        update_quantity(batch.inventory_id, -1, initial_total_quantity - new_total_quantity)
+        update_quantity(batch_update.inventory_id, -1, initial_total_quantity - new_total_quantity)
     else:
-        update_quantity(batch.inventory_id, 1, new_total_quantity - initial_total_quantity)
-
-    if initial_no_of_package < batch.no_of_package:
-        for _ in range(batch.no_of_package - initial_no_of_package):
-            create_package(BatchPackageCreate(
-                batch_id=batch.batch_id,
-                inventory_id=batch.inventory_id,
-                status='New'
-            ))
-    elif initial_no_of_package > batch.no_of_package:
-        packages_to_remove = session.query(BatchPackage).filter_by(batch_id=batch.batch_id).limit(initial_no_of_package - batch.no_of_package).all()
-        for package in packages_to_remove:
-            session.delete(package)
+        update_quantity(batch_update.inventory_id, 1, new_total_quantity - initial_total_quantity)
 
     session.commit()
     return {"message": f"Batch '{batch.batch_id}' updated successfully"}
 
 @app.delete('/inventory/batch/remove', tags=['Inventory'])
-def remove_batch(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))], batch_id: int, inventory_id: int):
-    batch = session.query(InventoryBatch).filter_by(batch_id=batch_id, inventory_id=inventory_id).first()
+def remove_batch(batch_id: int, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
+    batch = session.query(InventoryBatch).filter(InventoryBatch.batch_id==batch_id).first()
 
     if not batch:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Batch not found")
@@ -205,63 +182,14 @@ def remove_batch(user: Annotated[User, Depends(validate_role(roles=['manager','c
 
     session.delete(batch)
     session.commit()
-    session.query(BatchPackage).filter_by(batch_id=batch_id).delete()
-    update_quantity(inventory_id, -1, initial_no_of_package * initial_quantity_per_package)
+    update_quantity(batch.inventory_id, -1, initial_no_of_package * initial_quantity_per_package)
     
     return {"message": f"Batch '{batch_id}' removed successfully"}
 
-@app.post('/inventory/batch/package/add', tags=['Inventory'])
-def add_package(package: BatchPackageCreate, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
-    existing_package = session.query(BatchPackage).filter_by(package_id=package.package_id).first()
-    if existing_package:
-        raise HTTPException(status_code=status.HTTP_201_CREATED, detail="Package already exists")
-    else:
-        new_package = create_package(package)
-        batch = session.query(InventoryBatch).filter_by(batch_id=package.batch_id, inventory_id=package.inventory_id).first()
-        if batch:
-            batch.no_of_package += 1
-            session.commit()
-            update_quantity(package.inventory_id, 1, batch.quantity_per_package)
-        
-        return {"message": f"Package '{new_package.package_id}' created successfully"}
-    
-@app.patch('/inventory/batch/package/manage', tags=['Inventory'])
-def manage_package_details(package: BatchPackageCreate, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
-    package_update = session.query(BatchPackage).filter_by(package_id=package.package_id).first()
-    if not package_update:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Package not found")
-    
-    initial_inventory_id = package_update.inventory_id
-    initial_quantity_per_package = session.query(InventoryBatch).filter_by(batch_id=package_update.batch_id,inventory_id=package_update.inventory_id).first().quantity_per_package
-    new_quantity_per_package = session.query(InventoryBatch).filter_by(batch_id=package.batch_id,inventory_id=package.inventory_id).first().quantity_per_package
-    
-    package_update.batch_id = package.batch_id
-    package_update.inventory_id = package.inventory_id
-    package_update.status = package.status
-
-    if initial_inventory_id != package.inventory_id:
-        update_quantity(initial_inventory_id, -1, initial_quantity_per_package)
-        update_quantity(package.inventory_id, 1, new_quantity_per_package)
-
-    session.commit()
-    return {"message": f"Package '{package.package_id}' updated successfully"}
-
-@app.delete('/inventory/batch/package/remove', tags=['Inventory'])
-def remove_package(user: Annotated[User, Depends(validate_role(roles=['manager','chef']))], package_id: int, batch_id: int):
-    package = session.query(BatchPackage).filter_by(package_id=package_id, batch_id=batch_id).one()
-
-    if not package:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Package not found")
-
-    inventory_id = package.inventory_id
-    quantity_per_package = session.query(InventoryBatch).filter_by(batch_id=batch_id).first().quantity_per_package
-
-    session.delete(package)
-    session.commit()
-
-    update_quantity(inventory_id, -1, quantity_per_package)
-
-    return {"message": f"Package '{package_id}' removed successfully"}
+@app.get('/inventory/batch/view', tags=['Inventory'])
+def view_batch(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
+    batches = session.query(InventoryBatch).all()
+    return [{"Batch_id": batch.batch_id, "Inventory_id": batch.inventory_id, "No_of_Package": batch.no_of_package, "Quantity_per_package": batch.quantity_per_package, "Acquisition_date": batch.acquisition_date, "Expiration_date": batch.expiration_date, "Cost": batch.cost, "Cost_per_unit": batch.cost_per_unit} for batch in batches]
 
 
 @app.post('/menu/items/add', tags=['Menu'])
@@ -336,46 +264,36 @@ def remove_item(user: Annotated[User, Depends(validate_role(roles=['manager','ch
 @app.on_event("startup")
 @repeat_every(seconds=86400)  # 24 hours
 def recalculate_inventory_quantities() -> None:
-        inventories = session.query(Inventory).all()
-        for inventory in inventories:
-            initial_total_quantity = inventory.quantity
+    inventories = session.query(Inventory).all()
+    for inventory in inventories:
+        initial_total_quantity = inventory.quantity
 
-            total_unopened_inventory = 0
-            batches = session.query(InventoryBatch).filter_by(inventory_id=inventory.inventory_id).all()
-            for batch in batches:
-                quantity_in_new_package = sum( ## quantity of inventory for a batch
-                    session.query(BatchPackage)
-                    .filter_by(batch_id=batch.batch_id, inventory_id=batch.inventory_id, status='New')
-                    .count() * batch.quantity_per_package
-                )
-                total_unopened_inventory += quantity_in_new_package ## total inventory include every batch
+        total_unopened_inventory = 0
+        batches = session.query(InventoryBatch).filter_by(inventory_id=inventory.inventory_id).all()
+        for batch in batches:
+            if batch.status == 'New':
+                total_unopened_inventory += batch.no_of_package * batch.quantity_per_package
 
-                In_use_package_quantity = initial_total_quantity - total_unopened_inventory
-                in_use_expiration_date = session.query(InventoryBatch.expiration_date).join(BatchPackage).filter(
-                    BatchPackage.inventory_id == inventory.inventory_id,
-                    BatchPackage.status == 'In Use'
-                ).order_by(InventoryBatch.expiration_date).first()
+        In_use_package_quantity = initial_total_quantity - total_unopened_inventory
+        in_use_expiration_date = session.query(InventoryBatch.expiration_date).filter(
+            InventoryBatch.inventory_id == inventory.inventory_id,
+            InventoryBatch.status == 'In Use'
+        ).order_by(InventoryBatch.expiration_date).first()
 
-                total_fresh_inventory = 0
-                fresh_batches = session.query(InventoryBatch).filter_by(inventory_id=inventory.inventory_id).all()
-                for batch in fresh_batches:
-                    if batch.expiration_date >= date.today():
-                        quantity_in_new_package = sum( ## quantity of inventory for a batch
-                            session.query(BatchPackage)
-                            .filter_by(batch_id=batch.batch_id, inventory_id=batch.inventory_id, status='New')
-                            .count() * batch.quantity_per_package
-                        )
+        total_fresh_inventory = 0
+        fresh_batches = session.query(InventoryBatch).filter_by(inventory_id=inventory.inventory_id).all()
+        for batch in fresh_batches:
+            if batch.expiration_date >= date.today():
+                if batch.status == 'New':
+                    total_fresh_inventory += batch.no_of_package * batch.quantity_per_package
 
-                        total_fresh_inventory += quantity_in_new_package ## total inventory include every batch except the in use one
-                        if in_use_expiration_date >= date.today():
-                            inventory.quantity = total_fresh_inventory + In_use_package_quantity
-                            session.commit()
-                        else:
-                            inventory.quantity = total_fresh_inventory
-                            session.commit()
-
-            
-            print(f"Recalculated inventory {inventory.inventory_name}: Initial Quantity = {initial_total_quantity}, Total New Inventory = {total_fresh_inventory}, Updated Quantity = {inventory.quantity}")
+        if in_use_expiration_date >= date.today():
+            inventory.quantity = total_fresh_inventory + In_use_package_quantity
+        else:
+            inventory.quantity = total_fresh_inventory
+        
+        session.commit()
+        print(f"Recalculated inventory {inventory.inventory_name}: Initial Quantity = {initial_total_quantity}, Total New Inventory = {total_fresh_inventory}, Updated Quantity = {inventory.quantity}")
 
 @app.on_event("startup")
 @repeat_every(seconds=3600) 
@@ -384,30 +302,6 @@ def check_inventory_levels() -> None:
     for inventory in inventories:
         check_stock_levels(inventory)
 
-@app.get('/inventory/view', tags=['Inventory'])
-def view_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
-    inventories = session.query(Inventory).all()
-    return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in inventories]
-
-@app.get('/inventory/batch/view', tags=['Inventory'])
-def view_batch(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
-    batches = session.query(InventoryBatch).all()
-    return [{"Batch_id": batch.batch_id, "Inventory_id": batch.inventory_id, "No_of_Package": batch.no_of_package, "Quantity_per_package": batch.quantity_per_package, "Acquisition_date": batch.acquisition_date, "Expiration_date": batch.expiration_date, "Cost": batch.cost, "Cost_per_unit": batch.cost_per_unit} for batch in batches]
-
-@app.get('/inventory/batch/package/view', tags=['Inventory'])
-def view_package(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
-    packages = session.query(BatchPackage).all()
-    return [{"Package_id": package.package_id, "Batch_id": package.batch_id, "Inventory_id": package.inventory_id, "Status": package.status} for package in packages]
-
-@app.get('/menu/items/view', tags=['Menu'])
-def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
-    items = session.query(MenuItem).all()
-    return [{"Item_id": item.item_id, "Item_name": item.item_name, "Price": item.price, "Picture_link": item.picture_link, "Description": item.description, "Category": item.category} for item in items]
-
-@app.get('/inventory/view/low', tags=['Inventory'])
-def view_low_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
-    low_inventory = session.query(Inventory).filter(Inventory.quantity <= 15).all()
-    return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in low_inventory]
 
 
 

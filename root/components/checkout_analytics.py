@@ -110,6 +110,8 @@ def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier',
     order = session.query(Order).filter(Order.table_id == table_number).order_by(Order.time_placed.desc()).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if order.paying_method != 'Not Paid Yet':
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Order already checked out")
 
     order.paying_method = paying_method
     user_points = session.query(User).filter(User.user_id == order.user_id).first()

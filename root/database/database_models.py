@@ -64,30 +64,20 @@ class Inventory(Base):
     unit = Column(String, nullable=True)
     item_ingredient = relationship('ItemIngredient', back_populates='inventory')  
     batch = relationship('InventoryBatch', back_populates='inventory')
-    package = relationship('BatchPackage', back_populates='inventory')
 
 
 class InventoryBatch(Base):
     __tablename__ = 'InventoryBatch'
-    batch_id = Column(Integer, primary_key=True)
-    inventory_id = Column(Integer, ForeignKey('Inventory.inventory_id'), primary_key=True)
+    batch_id = Column(Integer, primary_key=True, autoincrement=True)
+    inventory_id = Column(Integer, ForeignKey('Inventory.inventory_id'))
     no_of_package = Column(Integer,nullable=False)
     quantity_per_package = Column(Float, nullable=False)
     acquisition_date = Column(DateTime, default= datetime.now(timezone.utc))
     expiration_date = Column(DateTime,nullable = False)
     cost = Column(Float, nullable=False)
     cost_per_unit = Column(Float, nullable=False)
+    status = Column(Enum('New','In use','Finished',name='batch_status_enum'), nullable=False, default='New')
     inventory = relationship('Inventory', back_populates='batch')
-    package = relationship('BatchPackage', back_populates='batch')
-
-class BatchPackage(Base):
-    __tablename__ = 'BatchPackage'
-    package_id = Column(Integer, primary_key=True, autoincrement=True)
-    batch_id = Column(Integer,ForeignKey('InventoryBatch.batch_id'))
-    inventory_id = Column(Integer, ForeignKey('Inventory.inventory_id'))
-    status = Column(Enum('New','In use','Finished',name='category_enum'), nullable=False)
-    batch = relationship('InventoryBatch',back_populates='package')
-    inventory = relationship('Inventory', back_populates='package')
 
 
 class MenuItem(Base):

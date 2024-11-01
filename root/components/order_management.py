@@ -487,7 +487,7 @@ def expire_old_carts():
         session.commit()
 
 @app.get('/orders/view/{order_id}', tags=['Orders'])
-def view_order_details(order_id: int, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef', 'customer']))]):
+def view_current_order_details(order_id: int, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef', 'customer']))]):
     if get_role(user.user_id) in ['customer']:
         order = session.query(Order).filter(and_(Order.user_id == user.user_id, Order.paying_method == 'Not Paid Yet', Order.is_cancelled == False)).order_by(Order.time_placed.desc()).one_or_none()
     else:
@@ -543,8 +543,11 @@ def cancel_order_item(item_id: int, user: Annotated[User, Depends(validate_role(
     return {"message": "Item cancelled"}
 
 @app.patch('/orders/cancel', tags=['Orders'])
-def cancel_order(item_id: int, user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))]):
-    order = session.query(Order).filter(and_(Order.user_id == user.user_id, Order.time_placed is not None)).order_by(Order.time_placed.desc()).first()
+def cancel_order(user: Annotated[User, Depends(validate_role(roles=['customer', 'manager']))], order_id: Optional[int] = 0):
+    if order_id:
+        order = session.query(Order).filter(and_(Order.order_id == order_id, Order.paying_method == 'Not Paid Yet', Order.is_cancelled == False)).first()
+    else:
+        order = session.query(Order).filter(and_(Order.user_id == user.user_id, Order.paying_method == 'Not Paid Yet', Order.is_cancelled == False)).order_by(Order.time_placed.desc()).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
