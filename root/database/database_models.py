@@ -59,11 +59,12 @@ class SessionKey(Base):
 class Inventory(Base):
     __tablename__ = 'Inventory'
     inventory_id = Column(Integer, primary_key=True, autoincrement=True)
-    inventory_name = Column(String, nullable=False, unique=True)
+    inventory_name = Column(String, nullable=False)
     quantity = Column(Float, nullable=False)
     unit = Column(String, nullable=True)
     item_ingredient = relationship('ItemIngredient', back_populates='inventory')  
     batch = relationship('InventoryBatch', back_populates='inventory')
+    is_deleted = Column(Boolean, default=False)
 
 
 class InventoryBatch(Base):

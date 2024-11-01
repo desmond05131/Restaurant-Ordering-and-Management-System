@@ -89,7 +89,7 @@ def check_stock_levels(inventory: Inventory):
 
 @app.post('/inventory/add', tags=['Inventory'])
 def add_inventory( new_inventory_info: InventoryCreateInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
-    existing_inventory = session.query(Inventory).filter_by(inventory_name=new_inventory_info.inventory_name).first()
+    existing_inventory = session.query(Inventory).filter_by(inventory_name=new_inventory_info.inventory_name, is_deleted=False).first()
     if existing_inventory:
         raise HTTPException(status_code=status.HTTP_201_CREATED,detail= "Inventory with this name already exist")
     
@@ -113,24 +113,24 @@ def manage_inventory_details(inventory_update: InventoryUpdateInput, user: Annot
     return {"message": f"Product '{inventory_update.inventory_name}' updated with unit '{inventory_update.unit}'"}
 
 @app.delete('/inventory/remove', tags=['Inventory'])
-def remove_inventory(inventory_id: int,user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
-    inventory = session.query(Inventory).filter_by(inventory_id= inventory_id).first()
+def remove_inventory(inventory_id: int, user: Annotated[User, Depends(validate_role(roles=['manager','chef']))]):
+    inventory = session.query(Inventory).filter_by(inventory_id=inventory_id, is_deleted=False).first()
 
     if not inventory:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory not found")
 
-    session.delete(inventory)
+    inventory.is_deleted = True
     session.commit()
     return {"message": f"Inventory '{inventory.inventory_name}' removed successfully"}
 
 @app.get('/inventory/view', tags=['Inventory'])
 def view_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
-    inventories = session.query(Inventory).all()
+    inventories = session.query(Inventory).filter_by(is_deleted=False).all()
     return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in inventories]
 
 @app.get('/inventory/view/low', tags=['Inventory'])
 def view_low_inventory(user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> List[Dict[str, Any]]:
-    low_inventory = session.query(Inventory).filter(Inventory.quantity <= 15).all()
+    low_inventory = session.query(Inventory).filter(and_(Inventory.quantity <= 15, Inventory.is_deleted==False)).all()
     return [{"Inventory_id": inventory.inventory_id, "Inventory_name": inventory.inventory_name, "Quantity": inventory.quantity, "Unit": inventory.unit} for inventory in low_inventory]
 
 
@@ -139,6 +139,10 @@ def view_low_inventory(user: Annotated[User, Depends(validate_role(roles=['manag
 def restock(batch: BatchCreateInput, user: Annotated[User, Depends(validate_role(roles=['manager', 'chef']))]) -> Dict[str,str] :
     if batch.no_of_package <= 0 or batch.quantity_per_package <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid package or quantity. Are you serious?")
+    
+    inventory = session.query(Inventory).filter_by(inventory_id=batch.inventory_id).first()
+    if not inventory or inventory.is_deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory not found")
     
     new_batch = create_batch(batch)
     update_quantity(batch.inventory_id, batch.no_of_package, batch.quantity_per_package)
@@ -298,7 +302,7 @@ def recalculate_inventory_quantities() -> None:
 @app.on_event("startup")
 @repeat_every(seconds=3600) 
 def check_inventory_levels() -> None:
-    inventories = session.query(Inventory).all()
+    inventories = session.query(Inventory).filter_by(is_deleted=False).all()
     for inventory in inventories:
         check_stock_levels(inventory)
 
