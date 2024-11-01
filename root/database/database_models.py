@@ -237,6 +237,7 @@ class UserItemRating(Base):
 class UserOverallFeedback(Base):
     __tablename__ = 'UserOverallFeedback'
     user_id = Column(Integer, ForeignKey('UserData.user_id'), primary_key=True)
+    order_id = Column(Integer, ForeignKey('Order.order_id'), primary_key=True)
     overall_rating = Column(Integer, nullable=False)
     description = Column(String, nullable=True)
     user = relationship('User', back_populates='user_overall_rating')

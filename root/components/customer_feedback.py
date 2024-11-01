@@ -21,7 +21,7 @@ def update_rating(item_id: int, rating: int):
     session.commit()
 
 @app.post('/rating/rate_item', tags=['Ratings'])
-def rate_order_item(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))], rating: int, description: str, item_id: int):
+def rate_order_item(user: Annotated[User, Depends(validate_role(roles=['customer']))], rating: int, description: str, item_id: int):
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
 
@@ -56,11 +56,11 @@ def rate_order_item(user: Annotated[User, Depends(validate_role(roles=['customer
     return {"message": f"Item {order_item.item_name} rated with {rating} stars"}
 
 @app.patch('/rating/update_rating', tags=['Ratings'])
-def update_order_item_rating(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))], rating: int, description: str, item_id: int):
+def update_order_item_rating(user: Annotated[User, Depends(validate_role(roles=['customer']))], rating: int, description: str, item_id: int):
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
 
-    order = session.query(Order).filter(Order.user_id == user.user_id).order_by(Order.time_placed.desc()).first()
+    order = session.query(Order).filter(and_(Order.user_id == user.user_id, Order.is_cancelled == False)).order_by(Order.time_placed.desc()).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
@@ -89,11 +89,11 @@ def update_order_item_rating(user: Annotated[User, Depends(validate_role(roles=[
     return {"message": f"Item {order_item.item_name} rating updated to {rating} stars"}
 
 @app.post('/rating/overall', tags=['Ratings'])
-def submit_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))], rating: int, description: str):
+def submit_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['customer']))], rating: int, description: str):
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
 
-    order = session.query(Order).filter(Order.user_id == user.user_id).order_by(Order.time_placed.desc()).first()
+    order = session.query(Order).filter(and_(Order.user_id == user.user_id, Order.is_cancelled == False)).order_by(Order.time_placed.desc()).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
@@ -107,7 +107,7 @@ def submit_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['
     new_user_overall_feedback = UserOverallFeedback(
         user_id=user.user_id,
         order_id=order.order_id,
-        rating=rating,
+        overall_rating=rating,
         description=description
     )
     session.add(new_user_overall_feedback)
@@ -116,11 +116,11 @@ def submit_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['
     return {"message": "Overall feedback submitted"}
 
 @app.patch('/rating/update_overall', tags=['Ratings'])
-def update_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['customer','manager']))], rating: int, description: str):
+def update_overall_feedback(user: Annotated[User, Depends(validate_role(roles=['customer']))], rating: int, description: str):
     if rating < 1 or rating > 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rating must be between 1 and 5")
 
-    order = session.query(Order).filter(Order.user_id == user.user_id).order_by(Order.time_placed.desc()).first()
+    order = session.query(Order).filter(and_(Order.user_id == user.user_id, Order.is_cancelled == False)).order_by(Order.time_placed.desc()).first()
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 

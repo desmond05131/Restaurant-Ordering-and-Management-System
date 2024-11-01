@@ -131,7 +131,7 @@ def apply_voucher(voucher_code: str, user_id: int, order_id: int):
        
 def invalidate_used_voucher(voucher_code: str, user_id: int) -> int:
     voucher = session.query(Voucher).filter(Voucher.voucher_code == voucher_code).first()
-    userVoucher = session.query(UserVoucher).filter(and_(UserVoucher.voucher_id == voucher.voucher_id, UserVoucher.user_id == user_id, UserVoucher.use_date is None)).first()
+    userVoucher = session.query(UserVoucher).filter(and_(UserVoucher.voucher_id == voucher.voucher_id, UserVoucher.user_id == user_id, UserVoucher.use_date == None)).first()
     userVoucher.use_date = datetime.now()
     
     session.commit()
