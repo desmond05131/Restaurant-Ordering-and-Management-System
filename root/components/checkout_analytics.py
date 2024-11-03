@@ -8,6 +8,7 @@ import zpl
 
 from root.account.account import validate_role
 from root.database.database_models import User,Machine, InventoryBatch, Order, OrderItem, session, MenuItem
+from root.components.generate_receipt import generate_receipt
 
 from api import app
 
@@ -118,78 +119,37 @@ def checkout_order(user: Annotated[User, Depends(validate_role(roles=['cashier',
     user_points.points += int((order.net_total)/10)
     session.commit()
 
+    
     receipt_info = {
+        "invoice_number": order.order_id,
+        "date_time": order.time_placed,
         "table_number": order.table_number.table_id,
-        "order_id": order.order_id,
-        "time_placed": order.time_placed,
+        "items": [],
         "voucher_applied": order.user_voucher.voucher.voucher_code if order.user_voucher else None,
         "subtotal": order.subtotal,
-        "service_charge": order.service_charge,
-        "service_tax": order.service_tax,
+        "sales_tax": order.service_charge,
+        "service_charge": order.service_tax,
         "rounding_adjustment": order.rounding_adjustment,
         "net_total": order.net_total,
         "paying_method": order.paying_method,
-        "items": []
     }
 
     order_items = session.query(OrderItem).filter(OrderItem.order_id == order.order_id).all()
     for order_item in order_items:
         receipt_info["items"].append({
-            "item_name": order_item.item_name,
             "quantity": order_item.quantity,
-            "remarks": order_item.remarks,
-            "status": order_item.status
+            "name": order_item.item_name,
+            "price": session.query(MenuItem).filter(MenuItem.item_id == order_item.item_id).first().price
         })
-        
-    def generate_receipt(receipt_info):
-        instance = printer.Dummy()
-        instance.text(f"Table Number: {receipt_info['table_number']}\n")
-        instance.text(f"Order ID: {receipt_info['order_id']}\n")
-        instance.text(f"Time Placed: {receipt_info['time_placed']}\n")
-        instance.text(f"Voucher Applied: {receipt_info['voucher_applied']}\n")
-        instance.text(f"Subtotal: {receipt_info['subtotal']}\n")
-        instance.text(f"Service Charge: {receipt_info['service_charge']}\n")
-        instance.text(f"Service Tax: {receipt_info['service_tax']}\n")
-        instance.text(f"Rounding Adjustment: {receipt_info['rounding_adjustment']}\n")
-        instance.text(f"Net Total: {receipt_info['net_total']}\n")
-        instance.text(f"Paying Method: {receipt_info['paying_method']}\n")
-        instance.text("\nItems:\n")
-        for receipt_item in receipt_info['items']:
-            instance.text(f"Item Name: {receipt_item['item_name']}\n")
-            instance.text(f"Quantity: {receipt_item['quantity']}\n")
-            instance.text(f"Remarks: {receipt_item['remarks']}\n")
-            instance.text(f"Status: {receipt_item['status']}\n")
-            instance.text("\n")
-        instance.cut()
-        with open("./receipt.bin", "wb") as file:
-            file.write(instance.output)
 
-        l = zpl.Label(100, 60, dpmm=6)
-        l.origin(0, 4)
-        l.write_text('Restaurant Receipt', char_height=6, char_width=4, line_width=60, justification='C')
-        l.endorigin()
-        l.origin(0, 12)
-        l.write_text(f"Table Number: {receipt_info['table_number']}", char_height=3, char_width=2, line_width=60, justification='C', font='A')
-        l.endorigin()
-        l.origin(0, 15)
-        l.write_text(f"Order ID: {receipt_info['order_id']}", char_height=3, char_width=2, line_width=60, justification='C', font='A')
-        l.endorigin()
-        l.origin(0, 18)
-        l.write_text(f"Time Placed: {receipt_info['time_placed']}", char_height=3, char_width=2, line_width=60, justification='C', font='A')
-        l.endorigin()
-        l.origin(0, 21)
-        l.write_text(f"Net Total: {receipt_info['net_total']}", char_height=3, char_width=2, line_width=60, justification='C', font='A')
-        l.endorigin()
-        l.origin(0, 24)
-        l.write_text(f"Paying Method: {receipt_info['paying_method']}", char_height=3, char_width=2, line_width=60, justification='C', font='A')
-        l.endorigin()
+    # Generate the receipt
+    receipt_label = generate_receipt(receipt_info)
 
-        with open("./receipt.zpl", "w") as file:
-            file.write(l.dumpZPL())
+    # Print the ZPL code
+    print(receipt_label.dumpZPL())
 
-    generate_receipt(receipt_info)
-
-    # generate_receipt(receipt_info)
+    # Preview the label
+    receipt_label.preview()
     return {"message": "Order checked out", "receipt": receipt_info, "receipt_files": ["./receipt.bin", "./receipt.zpl"]}
 
 
