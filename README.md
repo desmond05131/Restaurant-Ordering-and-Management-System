@@ -73,11 +73,9 @@ Signup | [account/signup](http://127.0.0.1:8000/docs#/account/signup)
 
 #### Manager
 1. System Administration: Manage user accounts and credentials.
-    - APIs: 
 2. Order Management: Oversee order details, including viewing and updating order status.
 3. Financial Management: Track income, expenses, and profitability.
 4. Inventory Control: Maintain product inventory by adding, updating, or removing items (product and ingredients) from the system.
-   - APIs: 
 5. Customer Feedback: Monitor and review customer feedback to improve services.
 
 #### Customer
