@@ -249,6 +249,7 @@ async def view_menu_items(user: Annotated[User, Depends(validate_role(roles=['ma
             row_dict["description"] = row.description
             row_dict["category"] = row.category
             row_dict["picture_link"] = row.picture_link
+            row_dict["is_deleted"] = row.is_deleted
 
             for inventory in session.execute(
                     select(
