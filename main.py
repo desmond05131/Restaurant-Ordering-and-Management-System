@@ -1,7 +1,7 @@
 from datetime import datetime, time
 from fastapi import FastAPI, status, Depends, HTTPException
 from typing import Annotated
-from root.database.database_models import MenuItem, Inventory, ItemIngredient, SessionKey, SessionLocal, TableNumber, session
+from root.database.database_models import MenuItem, Inventory, ItemIngredient, SessionKey, SessionLocal, TableNumber, session, Order, OrderItem
 from root.account.account import sign_up, try_sign_up,login_for_session_key, logout, verify_login, create_account, CreateAccountDetails, get_UID_by_email
 from root.components.inventory_management import create_inventory, create_item, create_item_ingredient
 from root.components.voucher import create_voucher
@@ -10,6 +10,7 @@ from root.components.voucher import create_voucher
 # from root.components.machines import create_machine, create_machine_ingredient
 from api import app
 from root.schemas.voucher import VoucherBase, VoucherRequirementBase
+
 
 # Dependency to provide database session
 def get_db():
@@ -216,11 +217,161 @@ def create_test_vouchers():
             )
             create_voucher(voucher, voucher_requirement)
 
+
+def generate_test_orders():
+                orders_data = [
+                    {
+                        "order_id": 10,
+                        "user_id": 1,
+                        "table_id": 1,
+                        "cart_id": 1,
+                        "time_placed": datetime(2024, 9, 1, 12, 0),
+                        "user_voucher_id": None,
+                        "subtotal": 50.0,
+                        "service_charge": 5.0,
+                        "service_tax": 2.5,
+                        "rounding_adjustment": 0.0,
+                        "net_total": 57.5,
+                        "paying_method": "Credit Card"
+                    },
+                    {
+                        "order_id": 11,
+                        "user_id": 2,
+                        "table_id": 2,
+                        "cart_id": 2,
+                        "time_placed": datetime(2024, 9, 2, 13, 0),
+                        "user_voucher_id": 1,
+                        "subtotal": 30.0,
+                        "service_charge": 3.0,
+                        "service_tax": 1.5,
+                        "rounding_adjustment": 0.0,
+                        "net_total": 34.5,
+                        "paying_method": "Cash"
+                    },
+                    {
+                        "order_id": 12,
+                        "user_id": 1,
+                        "table_id": 3,
+                        "cart_id": 3,
+                        "time_placed": datetime(2024, 9, 3, 14, 0),
+                        "user_voucher_id": 2,
+                        "subtotal": 20.0,
+                        "service_charge": 2.0,
+                        "service_tax": 1.0,
+                        "rounding_adjustment": 0.0,
+                        "net_total": 23.0,
+                        "paying_method": "Debit Card"
+                    },
+                    {
+                        "order_id": 13,
+                        "user_id": 1,
+                        "table_id": 1,
+                        "cart_id": 1,
+                        "time_placed": datetime(2024, 10, 11, 12, 0),
+                        "user_voucher_id": None,
+                        "subtotal": 50.0,
+                        "service_charge": 5.0,
+                        "service_tax": 2.5,
+                        "rounding_adjustment": 0.0,
+                        "net_total": 57.5,
+                        "paying_method": "Credit Card"
+                    },
+                    {
+                        "order_id": 14,
+                        "user_id": 2,
+                        "table_id": 2,
+                        "cart_id": 2,
+                        "time_placed": datetime(2024, 10, 12, 13, 0),
+                        "user_voucher_id": 1,
+                        "subtotal": 30.0,
+                        "service_charge": 3.0,
+                        "service_tax": 1.5,
+                        "rounding_adjustment": 0.0,
+                        "net_total": 34.5,
+                        "paying_method": "Cash"
+                    },
+                    {
+                        "order_id": 15,
+                        "user_id": 1,
+                        "table_id": 3,
+                        "cart_id": 3,
+                        "time_placed": datetime(2024, 10, 31, 14, 0),
+                        "user_voucher_id": 2,
+                        "subtotal": 20.0,
+                        "service_charge": 2.0,
+                        "service_tax": 1.0,
+                        "rounding_adjustment": 0.0,
+                        "net_total": 23.0,
+                        "paying_method": "Debit Card"
+                    },
+                    {
+                        "order_id": 16,
+                        "user_id": 1,
+                        "table_id": 1,
+                        "cart_id": 1,
+                        "time_placed": datetime(2024, 10, 31, 12, 0),
+                        "user_voucher_id": None,
+                        "subtotal": 50.0,
+                        "service_charge": 5.0,
+                        "service_tax": 2.5,
+                        "rounding_adjustment": 0.0,
+                        "net_total": 57.5,
+                        "paying_method": "Credit Card"
+                    },
+                    {
+                        "order_id": 17,
+                        "user_id": 2,
+                        "table_id": 2,
+                        "cart_id": 2,
+                        "time_placed": datetime(2024, 1, 2, 13, 0),
+                        "user_voucher_id": 1,
+                        "subtotal": 30.0,
+                        "service_charge": 3.0,
+                        "service_tax": 1.5,
+                        "rounding_adjustment": 0.0,
+                        "net_total": 34.5,
+                        "paying_method": "Cash"
+                    },
+                    {
+                        "order_id": 18,
+                        "user_id": 1,
+                        "table_id": 3,
+                        "cart_id": 3,
+                        "time_placed": datetime(2024, 1, 3, 14, 0),
+                        "user_voucher_id": 2,
+                        "subtotal": 20.0,
+                        "service_charge": 2.0,
+                        "service_tax": 1.0,
+                        "rounding_adjustment": 0.0,
+                        "net_total": 23.0,
+                        "paying_method": "Debit Card"
+                    }
+                ]
+
+                for order_data in orders_data:
+                    order = Order(
+                        order_id=order_data["order_id"],
+                        user_id=order_data["user_id"],
+                        table_id=order_data["table_id"],
+                        cart_id=order_data["cart_id"],
+                        time_placed=order_data["time_placed"],
+                        user_voucher_id=order_data["user_voucher_id"],
+                        subtotal=order_data["subtotal"],
+                        service_charge=order_data["service_charge"],
+                        service_tax=order_data["service_tax"],
+                        rounding_adjustment=order_data["rounding_adjustment"],
+                        net_total=order_data["net_total"],
+                        paying_method=order_data["paying_method"]
+                    )
+                    session.add(order)
+                session.commit()
 # Call the function to populate the database with test data
 # create_test_vouchers()
 # generate_test_data()
 # test_signup_manager()
 # test_signup()
+generate_test_orders()
+
 
 
 def test_remove_sk():
