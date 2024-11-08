@@ -1,7 +1,7 @@
 from datetime import datetime, time
 from fastapi import FastAPI, status, Depends, HTTPException
 from typing import Annotated
-from root.database.database_models import MenuItem, Inventory, ItemIngredient, SessionKey, SessionLocal, TableNumber, session, Order, OrderItem
+from root.database.database_models import MenuItem,Machine, Inventory, ItemIngredient,InventoryBatch, SessionKey, SessionLocal, TableNumber, session, Order, OrderItem
 from root.account.account import sign_up, try_sign_up,login_for_session_key, logout, verify_login, create_account, CreateAccountDetails, get_UID_by_email
 from root.components.inventory_management import create_inventory, create_item, create_item_ingredient
 from root.components.voucher import create_voucher
@@ -365,15 +365,43 @@ def generate_test_orders():
                     )
                     session.add(order)
                 session.commit()
-# Call the function to populate the database with test data
-# create_test_vouchers()
-# generate_test_data()
-# test_signup_manager()
-# test_signup()
-generate_test_orders()
 
 
+def generate_batch_data():
+    batch_data = [
+        InventoryBatch(inventory_id=11, no_of_package=5, quantity_per_package=2.0, acquisition_date=datetime(2023, 10, 1), expiration_date=datetime(2025, 1, 1), cost=100.0, cost_per_unit=10.0),
+        InventoryBatch(inventory_id=12, no_of_package=10, quantity_per_package=2.0, acquisition_date=datetime(2023, 11, 2), expiration_date=datetime(2025, 1, 2), cost=200.0, cost_per_unit=10.0),
+        InventoryBatch(inventory_id=13, no_of_package=15, quantity_per_package=2.0, acquisition_date=datetime(2023, 9, 3), expiration_date=datetime(2025, 1, 3), cost=300.0, cost_per_unit=10.0),
+        InventoryBatch(inventory_id=14, no_of_package=20, quantity_per_package=2.0, acquisition_date=datetime(2023, 1, 4), expiration_date=datetime(2025, 1, 4), cost=400.0, cost_per_unit=10.0),
+        InventoryBatch(inventory_id=15, no_of_package=25, quantity_per_package=2.0, acquisition_date=datetime(2023, 12, 5), expiration_date=datetime(2025, 1, 5), cost=500.0, cost_per_unit=10.0),
+        InventoryBatch(inventory_id=16, no_of_package=30, quantity_per_package=2.0, acquisition_date=datetime(2024, 1, 6), expiration_date=datetime(2025, 1, 6), cost=600.0, cost_per_unit=10.0),
+        InventoryBatch(inventory_id=17, no_of_package=35, quantity_per_package=2.0, acquisition_date=datetime(2024, 2, 7), expiration_date=datetime(2025, 1, 7), cost=700.0, cost_per_unit=10.0),
+        InventoryBatch(inventory_id=18, no_of_package=40, quantity_per_package=2.0, acquisition_date=datetime(2024, 3, 8), expiration_date=datetime(2025, 1, 8), cost=800.0, cost_per_unit=10.0),
+        InventoryBatch(inventory_id=19, no_of_package=45, quantity_per_package=2.0, acquisition_date=datetime(2024, 4, 9), expiration_date=datetime(2025, 1, 9), cost=900.0, cost_per_unit=10.0),
+        InventoryBatch(inventory_id=20, no_of_package=50, quantity_per_package=2.0, acquisition_date=datetime(2024, 5, 10), expiration_date=datetime(2025, 1, 10), cost=1000.0, cost_per_unit=10.0),
+    ]
 
+    for batch in batch_data:
+        session.add(batch)
+    session.commit()
+
+def generate_test_machine_data():
+    machine_data = [
+        Machine(machine_name='Espresso Machine', machine_type='Coffee Maker', acquisition_date=datetime(2023, 1, 15), machine_status='Available', cost=1500.0, maintenance_required=False, issue_description=None, last_maintenance=None),
+        Machine(machine_name='Oven', machine_type='Baking', acquisition_date=datetime(2023, 3, 22), machine_status='Available', cost=3000.0, maintenance_required=False, issue_description=None, last_maintenance=None),
+        Machine(machine_name='Blender', machine_type='Mixing', acquisition_date=datetime(2023, 5, 10), machine_status='Under maintenance', cost=200.0, maintenance_required=True, issue_description='Blade replacement needed', last_maintenance=datetime(2023, 10, 1)),
+        Machine(machine_name='Grill', machine_type='Cooking', acquisition_date=datetime(2023, 7, 5), machine_status='Available', cost=800.0, maintenance_required=False, issue_description=None, last_maintenance=None),
+        Machine(machine_name='Dishwasher', machine_type='Cleaning', acquisition_date=datetime(2023, 9, 18), machine_status='Available', cost=1200.0, maintenance_required=False, issue_description=None, last_maintenance=None),
+        Machine(machine_name='Ice Cream Maker', machine_type='Dessert', acquisition_date=datetime(2023, 11, 30), machine_status='Under maintenance', cost=500.0, maintenance_required=True, issue_description='Compressor issue', last_maintenance=datetime(2024, 1, 15)),
+        Machine(machine_name='Juicer', machine_type='Juicing', acquisition_date=datetime(2024, 2, 14), machine_status='Available', cost=300.0, maintenance_required=False, issue_description=None, last_maintenance=None),
+        Machine(machine_name='Microwave', machine_type='Heating', acquisition_date=datetime(2024, 4, 25), machine_status='Available', cost=400.0, maintenance_required=False, issue_description=None, last_maintenance=None),
+        Machine(machine_name='Refrigerator', machine_type='Cooling', acquisition_date=datetime(2024, 6, 12), machine_status='Available', cost=2500.0, maintenance_required=False, issue_description=None, last_maintenance=None),
+        Machine(machine_name='Toaster', machine_type='Toasting', acquisition_date=datetime(2024, 8, 8), machine_status='Available', cost=100.0, maintenance_required=False, issue_description=None, last_maintenance=None),
+    ]
+
+    for machine in machine_data:
+        session.add(machine)
+    session.commit()
 def test_remove_sk():
    
     sk_list = session.query(SessionKey).filter_by(user_id=1).all()
@@ -381,4 +409,13 @@ def test_remove_sk():
         session.delete(sk)
     session.commit()
 
-# test_remove_sk()
+# Call the function to populate the database with test data
+# create_test_vouchers()
+# generate_test_data()
+# test_signup_manager()
+# test_signup()
+# generate_test_orders()
+# generate_batch_data()
+# generate_test_machine_data()
+
+test_remove_sk()
