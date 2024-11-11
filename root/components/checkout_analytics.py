@@ -249,7 +249,7 @@ def get_sales_report(user: Annotated[User, Depends(validate_role(roles=['cashier
     
     report = generate_sales_report(time_period, start_time, end_time)
     graph = plot_sales_report(report, time_period)
-    return {"message": "Sales report generated"}
+    return {"message": "Sales report generated", "report": report, "graph": graph}
 
 
 @app.get('/analytics/inventory_cost_report', tags=['Analytics'])
@@ -262,7 +262,7 @@ def get_inventory_cost_report(user: Annotated[User, Depends(validate_role(roles=
     
     report = generate_inventory_cost_report(time_period, start_time, end_time)
     graph = plot_inventory_cost_report(report, time_period)
-    return {"message": "Inventory cost report generated"}
+    return {"message": "Inventory cost report generated", "report": report, "graph": graph}
 
 
 @app.get('/analytics/machine_cost_report', tags=['Analytics'])
@@ -275,7 +275,7 @@ def get_machine_cost_report(user: Annotated[User, Depends(validate_role(roles=['
     
     report = generate_machine_cost_report(time_period, start_time, end_time)
     graph = plot_machine_cost_report(report, time_period)
-    return {"message": "Machine cost report generated"}
+    return {"message": "Machine cost report generated", "report": report, "graph": graph}
 
 
 @app.get('/analytics/gross_profit_report', tags=['Analytics'])
@@ -288,7 +288,7 @@ def get_gross_profit_report(user: Annotated[User, Depends(validate_role(roles=['
     
     report = generate_gross_profit_report(time_period, start_time, end_time)
     graph = plot_gross_profit_report(report, time_period)
-    return {"message": "Gross profit report generated"}
+    return {"message": "Gross profit report generated", "report": report, "graph": graph}
 
 
 
