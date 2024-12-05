@@ -101,21 +101,7 @@ def apply_voucher(voucher_code: str, user_id: int, order_id: int):
         raise HTTPException(status_code=400, detail="Voucher has not reached requirement time")
     if voucher_requirement.minimum_spend > cart.subtotal:
         raise HTTPException(status_code=400, detail="Minimum spend not reached")
-    
-    # if voucher.voucher_type == 'percentage discount':
-    #     discount = cart.subtotal * voucher.discount_value
-    #     if voucher_requirement.capped_amount is not None:
-    #         if discount > voucher_requirement.capped_amount:
-    #             discount = voucher_requirement.capped_amount
-    #     cart.subtotal -= discount
-
-    # elif voucher.voucher_type == 'fixed amount discount':
-    #     discount = voucher.discount_value
-    #     cart.subtotal -= discount
-
-
     if voucher.voucher_type == 'free item':
-        # discount = 0
         new_order_item = OrderItem(
             order_id = order_id,
             item_id = voucher_requirement.applicable_item_id,

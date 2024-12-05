@@ -418,9 +418,6 @@ def view_cart(user: Annotated[User, Depends(validate_role(roles=['customer','man
     cart_items = session.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
     items = [{"item_name": item.item_name, "quantity": item.quantity} for item in cart_items]
 
-    # subtotal = calculate_subtotal(cart.cart_id)
-    # net_total = calculate_net_total(cart.cart_id)
-    
     recalculate_cart_totals(cart.cart_id)
 
     return {

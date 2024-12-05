@@ -105,81 +105,6 @@ def plot_sales_report(
 # sales_report = generate_sales_report("day", datetime(2023, 1, 1), datetime(2024, 12, 31))
 # plot_sales_report(sales_report, "day")
 
-
-def generate_inventory_cost_report(
-    time_period: Literal["year", "month", "week", "day"],
-    start_time: datetime,
-    end_time: datetime
-) -> Dict[str, Dict[str, float]]:
-    # Assume `session` and `InventoryBatch` are defined elsewhere
-    query = session.query(InventoryBatch.time_recorded,
-        func.sum(InventoryBatch.cost).label('total_cost')
-    ).filter(InventoryBatch.time_recorded >= start_time, InventoryBatch.time_recorded <= end_time)
-
-    if time_period == "year":
-        query = query.group_by(extract('year', InventoryBatch.time_recorded))
-    elif time_period == "month":
-        query = query.group_by(extract('year', InventoryBatch.time_recorded), extract('month', InventoryBatch.time_recorded))
-    elif time_period == "week":
-        query = query.group_by(extract('year', InventoryBatch.time_recorded), extract('week', InventoryBatch.time_recorded))
-    elif time_period == "day":
-        query = query.group_by(extract('year', InventoryBatch.time_recorded), extract('month', InventoryBatch.time_recorded), extract('day', InventoryBatch.time_recorded))
-
-    costs = query.all()
-    if not costs:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No inventory cost data found for the given timeframe")
-
-    report = {}
-    for cost in costs:
-        if time_period == "year":
-            report_key = f"{cost[0].year}"
-        elif time_period == "month":
-            report_key = f"{cost[0].year}-{cost[0].month:02d}"
-        elif time_period == "week":
-            report_key = f"{cost[0].year}-W{cost[0].isocalendar()[1]:02d}"
-        elif time_period == "day":
-            report_key = f"{cost[0].year}-{cost[0].month:02d}-{cost[0].day:02d}"
-
-        report_time_period, total_cost = cost[0], cost[1]
-        report[report_key] = {
-            "time_period": report_time_period,
-            "total_cost": total_cost if total_cost is not None else 0
-        }
-
-    return report
-
-def plot_inventory_cost_report(
-    cost_report: Dict[str, Dict[str, float]],
-    time_period: Literal["year", "month", "week", "day"]
-):
-    # Extract data for plotting
-    dates = list(cost_report.keys())
-    total_cost = [data["total_cost"] for data in cost_report.values()]
-
-    # Create a figure and axis
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    # Plot total cost
-    ax.set_xlabel("Time Period")
-    ax.set_ylabel("Total Cost", color="tab:orange")
-    ax.plot(dates, total_cost, color="tab:orange", label="Total Cost",marker='o')
-    ax.set_ylim(ymin=0)
-    ax.tick_params(axis="y", labelcolor="tab:orange")
-    ax.legend(loc="upper right")
-
-    # Format the x-axis based on the time period
-    plt.xticks(rotation=45, ha="right")
-    plt.title(f"Inventory Cost Report ({time_period.capitalize()})")
-
-    # Show the plot
-    plt.tight_layout()
-    plt.show()
-
-# cost_report = generate_inventory_cost_report("day", datetime(2023, 1, 1), datetime(2024, 12, 31))
-# plot_inventory_cost_report(cost_report, "day")
-
-
-
 def generate_inventory_cost_report(
     time_period: Literal["year", "month", "week", "day"],
     start_time: datetime,
@@ -343,10 +268,6 @@ def plot_machine_cost_report(machine_report: Dict[str, Dict[str, float]],
 
 # cost_report = generate_machine_cost_report("week", datetime(2023, 1, 1), datetime(2024, 12, 31))
 # plot_machine_cost_report(cost_report, "week")
-
-
-
-
 
 def generate_gross_profit_report(
     time_period: Literal["year", "month", "week", "day"],

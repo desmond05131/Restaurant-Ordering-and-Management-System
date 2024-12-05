@@ -40,9 +40,9 @@ class UserData(BaseModel):
 # get user data by UID
 def get_user_data_by_UID(user_id: int) -> dict:
     try:
-        user = session.query(User).filter_by(user_id=user_id).one()#session.execute(select(User.UID).where(User.UID==UID)).one()
-        credentials = session.query(Credential).filter_by(user_id=user_id).one() #session.execute(select(Credentials.UID).where(Credentials.UID==UID)).one()
-        session_keys = session.query(SessionKey).filter_by(user_id=user_id).all() #session.execute(select(SessionKey.UID).where( SessionKey.UID==UID)).all()
+        user = session.query(User).filter_by(user_id=user_id).one()
+        credentials = session.query(Credential).filter_by(user_id=user_id).one() 
+        session_keys = session.query(SessionKey).filter_by(user_id=user_id).all() 
 
         print(user)
 

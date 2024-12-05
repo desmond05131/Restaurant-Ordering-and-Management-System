@@ -1,4 +1,3 @@
-
 from zpl import Label
 import os
 from PIL import Image
@@ -208,38 +207,3 @@ def generate_receipt(receipt_info):
         print(l.dumpZPL())  # Print ZPL to console for debugging
 
     return l
-
-# Example receipt data to test the function
-# receipt_info = {
-#     "invoice_number": "08000008",
-#     "date": "09/04/08",
-#     "table_number": "25",
-#     "time": "12:45",
-#     "items": [
-#         {"quantity": 2, "name": "Carlsberg Bottle", "price": 16.00},
-#         {"quantity": 3, "name": "Heineken Draft Standard", "price": 24.60},
-#         {"quantity": 1, "name": "Heineken Draft Half Liter", "price": 15.20},
-#         {"quantity": 2, "name": "Carlsberg Bucket (5 bottles)", "price": 80.00},
-#         {"quantity": 4, "name": "Grilled Chicken Breast", "price": 74.00},
-#         {"quantity": 3, "name": "Sirloin Steak", "price": 96.00},
-#         {"quantity": 1, "name": "Coke", "price": 3.50},
-#         {"quantity": 5, "name": "Ice Cream", "price": 18.00},
-#     ],
-#     "voucher_applied": "DISCOUNT10",
-#     "subtotal": 327.30,
-#     "sales_tax": 16.36,
-#     "service_charge": 32.73,
-#     "rounding_adjustment": 0.01,
-#     "net_total": 376.40,
-#     "paying_method": "CASH",
-    
-# }
-
-# # Generate the receipt
-# receipt_label = generate_receipt(receipt_info)
-
-# # Print the ZPL code
-# print(receipt_label.dumpZPL())
-
-# # Preview the label
-# receipt_label.preview()
