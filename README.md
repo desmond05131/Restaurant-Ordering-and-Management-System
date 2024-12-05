@@ -45,7 +45,6 @@ APIs are accessible locally at http://127.0.0.1:8000/, documentation at http://1
 > [!IMPORTANT]
 Some apis require authentication, so you have to login to use them. Below are some sample account you can use.
 
-Alternatively, you can create your own account
 
 Role|Email|Password
 -|-|-
@@ -53,6 +52,7 @@ Customer|customer0001@mail.com|Cus0001@
 Manager|manager0001@mail.com|Maneger0001@
 
 ***
+Alternatively, you can create your own account
 
 ### API Documentations
 
