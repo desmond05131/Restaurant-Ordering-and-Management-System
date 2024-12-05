@@ -37,6 +37,9 @@ Run FastAPI to use apis locally:
 FastAPI dev main.py
 ```
 
+> [!NOTE]
+If you're downloading the source directly, you would start with a empty Database, please open main.py and uncomment line 539 - 545 and run file to generate test data.
+
 APIs are accessible locally at http://127.0.0.1:8000/, documentation at http://127.0.0.1:8000/docs#/
 
 > [!IMPORTANT]
@@ -49,22 +52,12 @@ Role|Email|Password
 Customer|customer0001@mail.com|Cus0001@
 Manager|manager0001@mail.com|Maneger0001@
 
-> More in [Account](#Account)
-
 ***
 
 ### API Documentations
 
 > [!CAUTION]
 > The current SECRET_KEY is exposed, so it is not recommended that any real passwords are used for testing. Replace the SECRET_KEY in `/root/account/account` with your own key if you're using it for prod. You can generate your own SECRET_KEY using by running `openssl rand -hex 32` in terminal.
-
-### Account
-Goal|API
--|-
-Login / GetSessionKey | [/key](http://127.0.0.1:8000/docs#/account/login_account_get_token_get)
-Logout / ExpireSessionKey | [account/expire_session_key](http://127.0.0.1:8000/docs#/account/logout_account_expire_token_delete)
-Signup | [account/signup](http://127.0.0.1:8000/docs#/account/signup)
-
 
 #### Manager
 1. System Administration: Manage user accounts and credentials.
