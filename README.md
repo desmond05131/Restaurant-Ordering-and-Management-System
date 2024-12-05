@@ -58,7 +58,7 @@ Alternatively, you can create your own account
 ### API Documentations
 
 > [!CAUTION]
-> The current SECRET_KEY is exposed, so it is not recommended that any real passwords are used for testing. Replace the SECRET_KEY in `/root/account/account` with your own key if you're using it for prod. You can generate your own SECRET_KEY using by running `openssl rand -hex 32` in terminal.
+> The current SECRET_KEY is exposed, so it is not recommended that any real passwords are used for testing. Replace the SECRET_KEY in `/root/account/account.py` with your own key if you're using it for prod. You can generate your own SECRET_KEY using by running `openssl rand -hex 32` in terminal.
 
 #### Manager
 1. System Administration: Manage user accounts and credentials.
