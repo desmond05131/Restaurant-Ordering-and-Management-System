@@ -11,6 +11,7 @@ pip install virtualenv
 virtualenv -p python3.11 venv
 venv\scripts\activate.bat
 pip install -r requirements.txt
+pip install "fastapi[standard]"
 ```
 
 MacOs or Linux:
@@ -19,6 +20,7 @@ pip install virtualenv
 virtualenv -p python3.11 venv
 venv/bin/activate
 pip install -r requirements.txt
+pip install "fastapi[standard]"
 ```
 
 Install the python 3.11 intepreter if you don't have python 311:\
