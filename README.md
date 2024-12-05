@@ -34,7 +34,7 @@ del "Downloads\python-3.11.0-amd64.exe"
 
 Run FastAPI to use apis locally:
 ```
-FastAPI dev main.py
+fastapi dev main.py
 ```
 
 > [!NOTE]
