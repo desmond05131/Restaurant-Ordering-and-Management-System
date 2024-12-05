@@ -51,8 +51,9 @@ Role|Email|Password
 Customer|customer0001@mail.com|Cus0001@
 Manager|manager0001@mail.com|Maneger0001@
 
-***
 Alternatively, you can create your own account
+***
+
 
 ### API Documentations
 
