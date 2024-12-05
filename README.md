@@ -1,11 +1,4 @@
 # Restaurant-Ordering-and-Management-System
-
-### How to pull code (For my teammates)
->1. Please make sure github desktop, git, and visual studio code already installed.
->  2.To clone a repository, run the Git: Clone command in the Command Palette (Ctrl+Shift+P), or select the Clone Repository button in the Source Control view. If you clone from GitHub, VS Code prompts you to authenticate with GitHub. Then, select a repository from the list to clone to your machine.
->   / IF still cannot, open github desktop press add and clone repo, then should be able to open in visual studio code
->  #To be add as collaborator
-
 ### How to use
 > [!WARNING]
 ROMS is only compatible with Python 3.10 and 3.11

@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status
 from typing import Annotated, Dict,Literal,Optional
 from sqlalchemy import func, extract
-from escpos import printer
 import zpl
 
 

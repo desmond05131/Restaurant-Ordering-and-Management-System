@@ -543,5 +543,4 @@ def test_remove_sk():
 # generate_test_orders()
 # generate_batch_data()
 # generate_test_machine_data()
-
 test_remove_sk()
