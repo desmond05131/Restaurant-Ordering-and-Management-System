@@ -1,15 +1,14 @@
 from datetime import date
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, FastAPI
 from typing import Annotated, Any, List, Dict, Optional
-from fastapi_utils.tasks import repeat_every
 from sqlalchemy import and_
+from asyncio import run_coroutine_threadsafe, run, get_event_loop, sleep, create_task
 
 from root.account.account import validate_role
 from root.database.database_models import session,User, Inventory, MenuItem, ItemIngredient, InventoryBatch
 from api import app
 from root.schemas.item import ItemInput, ItemIngredientsInput, NewItemWithIngredients
 from root.schemas.inventory import BatchUpdateInput, InventoryUpdateInput, BatchCreateInput, InventoryCreateInput
-
 
 
 def create_inventory(ingredient: InventoryCreateInput):
@@ -264,10 +263,17 @@ def remove_item(user: Annotated[User, Depends(validate_role(roles=['manager','ch
    
     return {"message": f"Item '{item_name}' and ingredients for '{item_name}' removed successfully"}
 
+def repeat_every(seconds):
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            while True:
+                await func(*args, **kwargs)
+                await sleep(seconds)
+        return wrapper
+    return decorator
 
-@app.on_event("startup")
-@repeat_every(seconds=86400)  # 24 hours
-def recalculate_inventory_quantities() -> None:
+@repeat_every(seconds=10)  # 24 hours
+async def recalculate_inventory_quantities() -> None:
     inventories = session.query(Inventory).all()
     for inventory in inventories:
         initial_total_quantity = inventory.quantity
@@ -299,15 +305,19 @@ def recalculate_inventory_quantities() -> None:
         session.commit()
         print(f"Recalculated inventory {inventory.inventory_name}: Initial Quantity = {initial_total_quantity}, Total New Inventory = {total_fresh_inventory}, Updated Quantity = {inventory.quantity}")
 
-@app.on_event("startup")
-@repeat_every(seconds=3600) 
-def check_inventory_levels() -> None:
+@repeat_every(seconds=10)  # 24 hours  
+async def check_inventory_levels():
+    print("Checking inventory levels")
     inventories = session.query(Inventory).filter_by(is_deleted=False).all()
     for inventory in inventories:
         check_stock_levels(inventory)
 
 
+async def start_tasks():
+    loop = get_event_loop()
+    loop.create_task(recalculate_inventory_quantities())
+    loop.create_task(check_inventory_levels())
 
+create_task(start_tasks())
 
-
-
+print("Inventory Management API started successfully")	

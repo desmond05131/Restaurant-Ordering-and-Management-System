@@ -3,13 +3,15 @@ from fastapi import FastAPI, status, Depends, HTTPException
 from typing import Annotated
 from root.database.database_models import MenuItem,Machine, Inventory, ItemIngredient,InventoryBatch, SessionKey, SessionLocal, TableNumber, session, Order, OrderItem
 from root.account.account import sign_up, try_sign_up,login_for_session_key, logout, verify_login, create_account, CreateAccountDetails, get_UID_by_email
-from root.components.inventory_management import create_inventory, create_item, create_item_ingredient
+from root.components.inventory_management import create_inventory, create_item, create_item_ingredient, recalculate_inventory_quantities, check_inventory_levels
 from root.components.voucher import create_voucher
 # from root.components.order_management import create_order, create_order_item
 # from root.components.customer_feedback import create_user_item_rating
 # from root.components.machines import create_machine, create_machine_ingredient
 from api import app
 from root.schemas.voucher import VoucherBase, VoucherRequirementBase
+# from fastapi_utils.tasks import repeat_every
+# from asyncio import thr
 
 
 # Dependency to provide database session
@@ -543,4 +545,4 @@ def test_remove_sk():
 # generate_test_orders()
 # generate_batch_data()
 # generate_test_machine_data()
-test_remove_sk()
+# test_remove_sk()
