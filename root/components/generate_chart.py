@@ -5,13 +5,14 @@ from fastapi import Depends, HTTPException, status
 from typing import Annotated, Dict,Literal,Optional
 from sqlalchemy import func, extract
 import zpl
+from api import app
+
 
 
 from root.account.account import validate_role
 from root.database.database_models import User,Machine, InventoryBatch, Order, OrderItem, session, MenuItem
 
 
-from api import app
 
 
 current_time = datetime.now()
@@ -101,9 +102,6 @@ def plot_sales_report(
     plt.tight_layout()
     plt.show()
 
-# sales_report = generate_sales_report("day", datetime(2023, 1, 1), datetime(2024, 12, 31))
-# plot_sales_report(sales_report, "day")
-
 def generate_inventory_cost_report(
     time_period: Literal["year", "month", "week", "day"],
     start_time: datetime,
@@ -183,10 +181,6 @@ def plot_inventory_cost_report(inventory_report: Dict[str, Dict[str, float]],
     plt.tight_layout()
     plt.show()
 
-# cost_report = generate_inventory_cost_report("week", datetime(2023, 1, 1), datetime(2024, 12, 31))
-# plot_inventory_cost_report(cost_report, "week")
-
-
 def generate_machine_cost_report(time_period: Literal["year", "month", "week", "day"],
     start_time: datetime,
     end_time: datetime
@@ -264,9 +258,6 @@ def plot_machine_cost_report(machine_report: Dict[str, Dict[str, float]],
     # Show the plot
     plt.tight_layout()
     plt.show()
-
-# cost_report = generate_machine_cost_report("week", datetime(2023, 1, 1), datetime(2024, 12, 31))
-# plot_machine_cost_report(cost_report, "week")
 
 def generate_gross_profit_report(
     time_period: Literal["year", "month", "week", "day"],
@@ -352,7 +343,6 @@ def generate_gross_profit_report(
 
     return report
 
-
 def plot_gross_profit_report(
         gross_profit_report: Dict[str, Dict[str, float]],
         time_period: Literal["year", "month", "week", "day"]
@@ -379,6 +369,3 @@ def plot_gross_profit_report(
         # Show the plot
         plt.tight_layout()
         plt.show()
-
-# gross_profit_report = generate_gross_profit_report("week", datetime(2023, 1, 1), datetime(2024, 12, 31))
-# plot_gross_profit_report(gross_profit_report, "week")
