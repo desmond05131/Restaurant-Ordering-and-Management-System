@@ -42,7 +42,7 @@ fastapi dev main.py
 ```
 
 > [!IMPORTANT]
-If you're downloading the source directly, you would start with a empty Database, please open main.py and uncomment line 539 - 545 and run file to generate test data. Remember to comment those line after that to run the program without integrity error.
+If you're downloading the source directly, you might start with a empty Database, in this case, please open main.py and uncomment line 539 - 545 and run file to generate test data. Remember to comment those line after that to run the program without integrity error.
 
 APIs documentation are accessible locally at http://127.0.0.1:8000/docs#/
 
